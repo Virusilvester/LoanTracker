@@ -1,12 +1,27 @@
 import React, { useState } from "react";
-import { View, StyleSheet, ScrollView } from "react-native";
-import { TextInput, Button, Appbar, HelperText } from "react-native-paper";
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  Image,
+  TouchableOpacity,
+  Alert,
+} from "react-native";
+import {
+  TextInput,
+  Button,
+  Appbar,
+  HelperText,
+  Avatar,
+} from "react-native-paper";
 import { addCustomer } from "../database/database";
+import { pickImage, takePhoto } from "../utils/photos";
 
 const AddCustomerScreen = ({ navigation }) => {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [photo, setPhoto] = useState(null);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
@@ -18,15 +33,26 @@ const AddCustomerScreen = ({ navigation }) => {
     return Object.keys(newErrors).length === 0;
   };
 
+  const handlePickImage = async () => {
+    const uri = await pickImage();
+    if (uri) setPhoto(uri);
+  };
+
+  const handleTakePhoto = async () => {
+    const uri = await takePhoto();
+    if (uri) setPhoto(uri);
+  };
+
   const handleSave = async () => {
     if (!validate()) return;
 
     setLoading(true);
     try {
-      await addCustomer(name, phone, email);
+      await addCustomer(name, phone, email, photo);
       navigation.goBack();
     } catch (error) {
       console.error(error);
+      Alert.alert("Error", "Failed to save customer");
     } finally {
       setLoading(false);
     }
@@ -40,6 +66,40 @@ const AddCustomerScreen = ({ navigation }) => {
       </Appbar.Header>
 
       <ScrollView style={styles.content}>
+        {/* Photo Section */}
+        <View style={styles.photoSection}>
+          {photo ? (
+            <TouchableOpacity onPress={() => setPhoto(null)}>
+              <Image source={{ uri: photo }} style={styles.photo} />
+            </TouchableOpacity>
+          ) : (
+            <Avatar.Text
+              size={100}
+              label="?"
+              style={styles.avatarPlaceholder}
+            />
+          )}
+
+          <View style={styles.photoButtons}>
+            <Button
+              mode="outlined"
+              onPress={handleTakePhoto}
+              style={styles.photoButton}
+              icon="camera"
+            >
+              Camera
+            </Button>
+            <Button
+              mode="outlined"
+              onPress={handlePickImage}
+              style={styles.photoButton}
+              icon="image"
+            >
+              Gallery
+            </Button>
+          </View>
+        </View>
+
         <TextInput
           label="Full Name *"
           value={name}
@@ -96,6 +156,26 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
+  },
+  photoSection: {
+    alignItems: "center",
+    marginBottom: 24,
+  },
+  photo: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+  },
+  avatarPlaceholder: {
+    backgroundColor: "#E5E7EB",
+  },
+  photoButtons: {
+    flexDirection: "row",
+    marginTop: 12,
+    gap: 12,
+  },
+  photoButton: {
+    marginHorizontal: 6,
   },
   input: {
     marginBottom: 4,

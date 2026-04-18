@@ -1,4 +1,5 @@
 import React from "react";
+import { useEffect } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
 import { Provider as PaperProvider, DefaultTheme } from "react-native-paper";
@@ -8,6 +9,12 @@ import HomeScreen from "./src/screens/HomeScreen";
 import AddCustomerScreen from "./src/screens/AddCustomerScreen";
 import CustomerDetailScreen from "./src/screens/CustomerDetailScreen";
 import AddTransactionScreen from "./src/screens/AddTransactionScreen";
+import SettingsScreen from "./src/screens/SettingsScreen";
+
+import {
+  requestNotificationPermissions,
+  checkAndScheduleOverdueReminders,
+} from "./src/services/notifications";
 
 const Stack = createStackNavigator();
 
@@ -25,6 +32,14 @@ const theme = {
 };
 
 export default function App() {
+  useEffect(() => {
+    // Request permissions on app start
+    requestNotificationPermissions();
+
+    // Check for overdue items daily (you might want to use BackgroundFetch for production)
+    checkAndScheduleOverdueReminders();
+  }, []);
+
   return (
     <PaperProvider theme={theme}>
       <NavigationContainer>
@@ -45,6 +60,7 @@ export default function App() {
             name="AddTransaction"
             component={AddTransactionScreen}
           />
+          <Stack.Screen name="Settings" component={SettingsScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </PaperProvider>

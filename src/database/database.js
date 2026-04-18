@@ -167,4 +167,54 @@ export const getDashboardStats = () => {
   });
 };
 
+export const updateCustomerPhoto = (customerId, photoUri) => {
+  return new Promise((resolve, reject) => {
+    db.transaction((tx) => {
+      tx.executeSql(
+        "UPDATE customers SET photo = ? WHERE id = ?",
+        [photoUri, customerId],
+        (_, result) => resolve(result),
+        (_, error) => reject(error),
+      );
+    });
+  });
+};
+
+export const getOverdueTransactions = () => {
+  return new Promise((resolve, reject) => {
+    db.transaction((tx) => {
+      tx.executeSql(
+        `SELECT t.*, c.name as customer_name, c.phone 
+         FROM transactions t
+         JOIN customers c ON t.customer_id = c.id
+         WHERE t.status = 'unpaid' 
+         AND date(t.date_borrowed) <= date('now', '-7 days')`,
+        [],
+        (_, { rows }) => resolve(rows._array),
+        (_, error) => reject(error),
+      );
+    });
+  });
+};
+
+// For CSV Export
+export const getAllDataForExport = () => {
+  return new Promise((resolve, reject) => {
+    db.transaction((tx) => {
+      tx.executeSql(
+        `SELECT 
+          c.name, c.phone, c.email,
+          t.item_name, t.amount, t.quantity, t.status,
+          t.date_borrowed, t.date_paid, t.notes
+         FROM customers c
+         LEFT JOIN transactions t ON c.id = t.customer_id
+         ORDER BY c.name, t.date_borrowed`,
+        [],
+        (_, { rows }) => resolve(rows._array),
+        (_, error) => reject(error),
+      );
+    });
+  });
+};
+
 export default db;

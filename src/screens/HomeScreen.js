@@ -1,6 +1,12 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { View, FlatList, StyleSheet, RefreshControl } from "react-native";
-import { FAB, Searchbar, Appbar, Snackbar } from "react-native-paper";
+import {
+  FAB,
+  Searchbar,
+  Appbar,
+  Snackbar,
+  IconButton,
+} from "react-native-paper";
 import CustomerCard from "../components/CustomerCard";
 import DashboardStats from "../components/DashboardStats";
 import {
@@ -56,6 +62,10 @@ const HomeScreen = ({ navigation }) => {
     <View style={styles.container}>
       <Appbar.Header style={styles.header}>
         <Appbar.Content title="Loan Tracker" subtitle="Manage customer loans" />
+        <Appbar.Action
+          icon="cog"
+          onPress={() => navigation.navigate("Settings")}
+        />
       </Appbar.Header>
 
       <DashboardStats stats={stats} />

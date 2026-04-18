@@ -1,16 +1,33 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { View, StyleSheet, ScrollView } from "react-native";
-import { TextInput, Button, Appbar, HelperText } from "react-native-paper";
+import {
+  TextInput,
+  Button,
+  Appbar,
+  HelperText,
+  Switch,
+  Text,
+} from "react-native-paper";
 import { addTransaction } from "../database/database";
+import {
+  requestNotificationPermissions,
+  schedulePaymentReminder,
+} from "../services/notifications";
 
 const AddTransactionScreen = ({ route, navigation }) => {
-  const { customerId } = route.params;
+  const { customerId, customerName } = route.params;
   const [itemName, setItemName] = useState("");
   const [amount, setAmount] = useState("");
   const [quantity, setQuantity] = useState("1");
   const [notes, setNotes] = useState("");
+  const [reminderEnabled, setReminderEnabled] = useState(true);
+  const [reminderDays, setReminderDays] = useState("7");
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    requestNotificationPermissions();
+  }, []);
 
   const validate = () => {
     const newErrors = {};
@@ -27,13 +44,24 @@ const AddTransactionScreen = ({ route, navigation }) => {
 
     setLoading(true);
     try {
-      await addTransaction(
+      const transactionId = await addTransaction(
         customerId,
         itemName,
         parseFloat(amount),
         parseInt(quantity) || 1,
         notes,
       );
+
+      // Schedule reminder if enabled
+      if (reminderEnabled) {
+        await schedulePaymentReminder(
+          transactionId,
+          customerName,
+          `$${amount}`,
+          parseInt(reminderDays) || 7,
+        );
+      }
+
       navigation.goBack();
     } catch (error) {
       console.error(error);
@@ -98,6 +126,29 @@ const AddTransactionScreen = ({ route, navigation }) => {
           placeholder="Condition of item, due date, etc."
         />
 
+        {/* Reminder Section */}
+        <View style={styles.reminderSection}>
+          <View style={styles.reminderHeader}>
+            <Text style={styles.reminderTitle}>Payment Reminder</Text>
+            <Switch
+              value={reminderEnabled}
+              onValueChange={setReminderEnabled}
+              color="#6366F1"
+            />
+          </View>
+
+          {reminderEnabled && (
+            <TextInput
+              label="Remind me in (days)"
+              value={reminderDays}
+              onChangeText={setReminderDays}
+              mode="outlined"
+              style={styles.reminderInput}
+              keyboardType="number-pad"
+            />
+          )}
+        </View>
+
         <Button
           mode="contained"
           onPress={handleSave}
@@ -132,6 +183,26 @@ const styles = StyleSheet.create({
   },
   input: {
     marginBottom: 4,
+    backgroundColor: "#fff",
+  },
+  reminderSection: {
+    marginTop: 16,
+    padding: 16,
+    backgroundColor: "#F3F4F6",
+    borderRadius: 12,
+  },
+  reminderHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  reminderTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#374151",
+  },
+  reminderInput: {
+    marginTop: 12,
     backgroundColor: "#fff",
   },
   button: {
