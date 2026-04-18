@@ -13,12 +13,14 @@ import {
   Appbar,
   HelperText,
   Avatar,
+  useTheme,
 } from "react-native-paper";
 import { addCustomer } from "../database/database";
 import { pickImage, takePhoto } from "../utils/photos";
 import { getInitials } from "../utils/helpers";
 
 const AddCustomerScreen = ({ navigation }) => {
+  const theme = useTheme();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -60,7 +62,9 @@ const AddCustomerScreen = ({ navigation }) => {
   };
 
   return (
-    <View style={styles.container}>
+    <View
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+    >
       <Appbar.Header>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
         <Appbar.Content title="New Customer" />
@@ -140,7 +144,7 @@ const AddCustomerScreen = ({ navigation }) => {
           mode="contained"
           onPress={handleSave}
           loading={loading}
-          style={styles.button}
+          style={[styles.button, { backgroundColor: theme.colors.secondary }]}
           contentStyle={styles.buttonContent}
         >
           Save Customer
@@ -153,7 +157,6 @@ const AddCustomerScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
   },
   content: {
     padding: 16,
@@ -180,12 +183,10 @@ const styles = StyleSheet.create({
   },
   input: {
     marginBottom: 4,
-    backgroundColor: "#fff",
   },
   button: {
     marginTop: 24,
     borderRadius: 8,
-    backgroundColor: "#6366F1",
   },
   buttonContent: {
     paddingVertical: 8,

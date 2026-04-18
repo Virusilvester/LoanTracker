@@ -1,17 +1,38 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
-import { getStatusColor, getDaysOverdue, getDaysUntilDue } from "../utils/helpers";
+import {
+  getStatusColor,
+  getDaysOverdueWithDueDate,
+  getDaysUntilDueWithDueDate,
+} from "../utils/helpers";
 
-const StatusBadge = ({ status, dateBorrowed }) => {
-  const daysOverdue = status === "unpaid" ? getDaysOverdue(dateBorrowed) : 0;
-  const daysUntilDue = status === "unpaid" ? getDaysUntilDue(dateBorrowed) : 0;
+const StatusBadge = ({ status, dateBorrowed, dueDate }) => {
+  const isOpen = status !== "paid";
+  const daysOverdue = isOpen
+    ? getDaysOverdueWithDueDate(dateBorrowed, dueDate)
+    : 0;
+  const daysUntilDue = isOpen
+    ? getDaysUntilDueWithDueDate(dateBorrowed, dueDate)
+    : 0;
   const color = getStatusColor(status, daysOverdue);
 
   const getLabel = () => {
     if (status === "paid") return "✓ Paid";
-    if (daysOverdue > 0) return `⚠️ ${daysOverdue}d overdue`;
-    if (daysUntilDue === 0) return "⏳ Due today";
-    return `⏳ Due in ${daysUntilDue}d`;
+
+    const dueText =
+      daysOverdue > 0
+        ? `${daysOverdue}d overdue`
+        : daysUntilDue === 0
+          ? "Due today"
+          : `Due in ${daysUntilDue}d`;
+
+    if (status === "partial") {
+      return daysOverdue > 0
+        ? `⚠️ Partial • ${dueText}`
+        : `Partial • ${dueText}`;
+    }
+
+    return daysOverdue > 0 ? `⚠️ ${dueText}` : `⏳ ${dueText}`;
   };
 
   return (

@@ -23,23 +23,56 @@ export const formatDate = (dateString) => {
 export const getDaysOverdue = (dateBorrowed) => {
   try {
     const borrowed = parseISO(dateBorrowed);
+    const due = new Date(borrowed);
+    due.setDate(due.getDate() + CREDIT_PERIOD_DAYS);
+
     const today = new Date();
-    const days = differenceInDays(today, borrowed);
-    return days > CREDIT_PERIOD_DAYS ? days - CREDIT_PERIOD_DAYS : 0;
+    const days = differenceInDays(today, due);
+    return days > 0 ? days : 0;
   } catch {
     return 0;
+  }
+};
+
+export const getDaysOverdueWithDueDate = (dateBorrowed, dueDate) => {
+  try {
+    if (dueDate) {
+      const due = parseISO(dueDate);
+      const today = new Date();
+      const days = differenceInDays(today, due);
+      return days > 0 ? days : 0;
+    }
+    return getDaysOverdue(dateBorrowed);
+  } catch {
+    return getDaysOverdue(dateBorrowed);
   }
 };
 
 export const getDaysUntilDue = (dateBorrowed) => {
   try {
     const borrowed = parseISO(dateBorrowed);
+    const due = new Date(borrowed);
+    due.setDate(due.getDate() + CREDIT_PERIOD_DAYS);
+
     const today = new Date();
-    const days = differenceInDays(today, borrowed);
-    const remaining = CREDIT_PERIOD_DAYS - days;
+    const remaining = differenceInDays(due, today);
     return remaining > 0 ? remaining : 0;
   } catch {
     return 0;
+  }
+};
+
+export const getDaysUntilDueWithDueDate = (dateBorrowed, dueDate) => {
+  try {
+    if (dueDate) {
+      const due = parseISO(dueDate);
+      const today = new Date();
+      const remaining = differenceInDays(due, today);
+      return remaining > 0 ? remaining : 0;
+    }
+    return getDaysUntilDue(dateBorrowed);
+  } catch {
+    return getDaysUntilDue(dateBorrowed);
   }
 };
 

@@ -12,6 +12,7 @@ import {
   Surface,
   Text,
   SegmentedButtons,
+  useTheme,
 } from "react-native-paper";
 import { useFocusEffect } from "@react-navigation/native";
 import TransactionItem from "../components/TransactionItem";
@@ -20,10 +21,15 @@ import {
   getTransactions,
   markAsPaid,
 } from "../database/database";
-import { cancelOverdueReminder, cancelReminder } from "../services/notifications";
-import { formatCurrency, getDaysOverdue } from "../utils/helpers";
+import {
+  cancelOverdueReminder,
+  cancelReminder,
+} from "../services/notifications";
+import { formatCurrency, getDaysOverdueWithDueDate } from "../utils/helpers";
 
 const TransactionsScreen = ({ navigation }) => {
+  const theme = useTheme();
+  const secondaryText = theme.colors.onSurfaceVariant || "#6B7280";
   const [transactions, setTransactions] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState("unpaid");
@@ -52,12 +58,18 @@ const TransactionsScreen = ({ navigation }) => {
   }, [loadTransactions]);
 
   const totals = useMemo(() => {
-    const unpaid = transactions.filter((t) => t.status === "unpaid");
-    const paid = transactions.filter((t) => t.status === "paid");
-    const unpaidTotal = unpaid.reduce((sum, t) => sum + (t.amount || 0), 0);
-    const paidTotal = paid.reduce((sum, t) => sum + (t.amount || 0), 0);
+    const unpaid = transactions.filter((t) => (Number(t.balance) || 0) > 0);
+    const paid = transactions.filter((t) => (Number(t.balance) || 0) <= 0);
+    const unpaidTotal = unpaid.reduce(
+      (sum, t) => sum + (Number(t.balance) || 0),
+      0,
+    );
+    const paidTotal = paid.reduce(
+      (sum, t) => sum + (Number(t.paid_amount) || 0),
+      0,
+    );
     const overdueCount = unpaid.filter(
-      (t) => getDaysOverdue(t.date_borrowed) > 0,
+      (t) => getDaysOverdueWithDueDate(t.date_borrowed, t.due_date) > 0,
     ).length;
 
     return {
@@ -74,11 +86,14 @@ const TransactionsScreen = ({ navigation }) => {
 
     const byFilter = transactions.filter((t) => {
       if (filter === "all") return true;
-      if (filter === "paid") return t.status === "paid";
+      if (filter === "paid") return (Number(t.balance) || 0) <= 0;
       if (filter === "overdue") {
-        return t.status === "unpaid" && getDaysOverdue(t.date_borrowed) > 0;
+        return (
+          (Number(t.balance) || 0) > 0 &&
+          getDaysOverdueWithDueDate(t.date_borrowed, t.due_date) > 0
+        );
       }
-      return t.status === "unpaid";
+      return (Number(t.balance) || 0) > 0;
     });
 
     if (!query) return byFilter;
@@ -143,24 +158,30 @@ const TransactionsScreen = ({ navigation }) => {
         ? "No overdue transactions"
         : filter === "all"
           ? "No transactions yet"
-          : "No unpaid transactions";
+          : "No owing transactions";
 
   return (
-    <View style={styles.container}>
+    <View
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+    >
       <Appbar.Header>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
         <Appbar.Content title="Transactions" />
       </Appbar.Header>
 
-      <Surface style={styles.summaryCard}>
+      <Surface
+        style={[styles.summaryCard, { backgroundColor: theme.colors.surface }]}
+      >
         <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Outstanding</Text>
-          <Text style={styles.summaryValue}>
+          <Text style={[styles.summaryLabel, { color: secondaryText }]}>
+            Outstanding
+          </Text>
+          <Text style={[styles.summaryValue, { color: theme.colors.primary }]}>
             {formatCurrency(totals.unpaidTotal)}
           </Text>
         </View>
-        <Text style={styles.summaryMeta}>
-          Unpaid: {totals.unpaidCount} • Overdue: {totals.overdueCount} • Paid:{" "}
+        <Text style={[styles.summaryMeta, { color: secondaryText }]}>
+          Owing: {totals.unpaidCount} • Overdue: {totals.overdueCount} • Paid:{" "}
           {formatCurrency(totals.paidTotal)}
         </Text>
       </Surface>
@@ -178,8 +199,12 @@ const TransactionsScreen = ({ navigation }) => {
           onValueChange={setFilter}
           style={styles.segment}
           buttons={[
-            { value: "unpaid", label: "Unpaid", icon: "clock-outline" },
-            { value: "overdue", label: "Overdue", icon: "alert-circle-outline" },
+            { value: "unpaid", label: "Owing", icon: "clock-outline" },
+            {
+              value: "overdue",
+              label: "Overdue",
+              icon: "alert-circle-outline",
+            },
             { value: "paid", label: "Paid", icon: "check-circle-outline" },
             { value: "all", label: "All", icon: "format-list-bulleted" },
           ]}
@@ -193,6 +218,9 @@ const TransactionsScreen = ({ navigation }) => {
           <TransactionItem
             transaction={item}
             onMarkPaid={handleMarkPaid}
+            onAddPayment={(tx) =>
+              navigation.navigate("AddPayment", { transactionId: tx.id })
+            }
             onDelete={handleDelete}
             showCustomerName
           />
@@ -217,14 +245,12 @@ const TransactionsScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F3F4F6",
   },
   summaryCard: {
     margin: 16,
     padding: 16,
     borderRadius: 12,
     elevation: 2,
-    backgroundColor: "#fff",
   },
   summaryRow: {
     flexDirection: "row",
@@ -233,19 +259,16 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     fontSize: 12,
-    color: "#6B7280",
     fontWeight: "600",
     textTransform: "uppercase",
   },
   summaryValue: {
     fontSize: 20,
     fontWeight: "800",
-    color: "#1E3A5F",
   },
   summaryMeta: {
     marginTop: 8,
     fontSize: 12,
-    color: "#6B7280",
   },
   controls: {
     paddingHorizontal: 16,
@@ -282,4 +305,3 @@ const styles = StyleSheet.create({
 });
 
 export default TransactionsScreen;
-

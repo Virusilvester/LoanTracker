@@ -1,14 +1,22 @@
 import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Image } from "react-native";
-import { Avatar, Card } from "react-native-paper";
+import { Avatar, Card, useTheme } from "react-native-paper";
 import { getInitials, formatCurrency } from "../utils/helpers";
 
 const CustomerCard = ({ customer, onPress }) => {
+  const theme = useTheme();
   const hasDebt = customer.owed_amount > 0;
+  const secondaryText = theme.colors.onSurfaceVariant || "#6B7280";
 
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
-      <Card style={[styles.card, hasDebt && styles.cardWithDebt]}>
+      <Card
+        style={[
+          styles.card,
+          { backgroundColor: theme.colors.surface },
+          hasDebt && styles.cardWithDebt,
+        ]}
+      >
         <Card.Content style={styles.content}>
           {customer.photo ? (
             <Image source={{ uri: customer.photo }} style={styles.photo} />
@@ -20,10 +28,14 @@ const CustomerCard = ({ customer, onPress }) => {
             />
           )}
           <View style={styles.info}>
-            <Text style={styles.name}>{customer.name}</Text>
-            <Text style={styles.phone}>{customer.phone || "No phone"}</Text>
+            <Text style={[styles.name, { color: theme.colors.onSurface }]}>
+              {customer.name}
+            </Text>
+            <Text style={[styles.phone, { color: secondaryText }]}>
+              {customer.phone || "No phone"}
+            </Text>
             <View style={styles.statsRow}>
-              <Text style={styles.stat}>
+              <Text style={[styles.stat, { color: secondaryText }]}>
                 {customer.total_transactions} items
               </Text>
               {hasDebt ? (
@@ -47,7 +59,6 @@ const styles = StyleSheet.create({
     marginVertical: 6,
     elevation: 2,
     borderRadius: 12,
-    backgroundColor: "#fff",
   },
   cardWithDebt: {
     borderLeftWidth: 4,

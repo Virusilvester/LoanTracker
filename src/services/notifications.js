@@ -81,7 +81,7 @@ export const checkAndScheduleOverdueReminders = async () => {
     const identifier = await Notifications.scheduleNotificationAsync({
       content: {
         title: "⚠️ Overdue Payment",
-        body: `${transaction.customer_name} - ${transaction.item_name} ($${transaction.amount}) is overdue!`,
+        body: `${transaction.customer_name} - ${transaction.item_name} (Balance: $${transaction.balance}) is overdue!`,
         data: { transactionId: transaction.id, type: "overdue" },
       },
       trigger: {

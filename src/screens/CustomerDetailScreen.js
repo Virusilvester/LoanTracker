@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   SegmentedButtons,
   Searchbar,
+  useTheme,
 } from "react-native-paper";
 import { useFocusEffect } from "@react-navigation/native";
 import TransactionItem from "../components/TransactionItem";
@@ -18,10 +19,16 @@ import {
   markAsPaid,
   deleteTransaction,
 } from "../database/database";
-import { cancelReminder, cancelOverdueReminder } from "../services/notifications";
+import {
+  cancelReminder,
+  cancelOverdueReminder,
+} from "../services/notifications";
 import { formatCurrency, getInitials } from "../utils/helpers";
 
 const CustomerDetailScreen = ({ route, navigation }) => {
+  const theme = useTheme();
+  const secondaryText = theme.colors.onSurfaceVariant || "#6B7280";
+
   const initialCustomer = route.params?.customer || null;
   const customerId = route.params?.customerId || initialCustomer?.id;
 
@@ -98,14 +105,16 @@ const CustomerDetailScreen = ({ route, navigation }) => {
     );
   };
 
-  const totalOwed = transactions
-    .filter((t) => t.status === "unpaid")
-    .reduce((sum, t) => sum + (t.amount || 0), 0);
+  const totalOwed = transactions.reduce(
+    (sum, t) => sum + (Number(t.balance) || 0),
+    0,
+  );
 
   const filteredTransactions = transactions
     .filter((t) => {
       if (transactionFilter === "all") return true;
-      return t.status === transactionFilter;
+      if (transactionFilter === "paid") return (Number(t.balance) || 0) <= 0;
+      return (Number(t.balance) || 0) > 0;
     })
     .filter((t) => {
       const query = transactionSearch.trim().toLowerCase();
@@ -121,7 +130,9 @@ const CustomerDetailScreen = ({ route, navigation }) => {
       : "Try a different filter or search term.";
 
   return (
-    <View style={styles.container}>
+    <View
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+    >
       <Appbar.Header>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
         <Appbar.Content title={customer?.name || "Customer"} />
@@ -138,7 +149,9 @@ const CustomerDetailScreen = ({ route, navigation }) => {
         </View>
       ) : null}
 
-      <Surface style={styles.profileCard}>
+      <Surface
+        style={[styles.profileCard, { backgroundColor: theme.colors.surface }]}
+      >
         {customer?.photo ? (
           <Avatar.Image
             size={80}
@@ -149,19 +162,25 @@ const CustomerDetailScreen = ({ route, navigation }) => {
           <Avatar.Text
             size={80}
             label={getInitials(customer?.name || "?")}
-            style={styles.avatar}
+            style={[styles.avatar, { backgroundColor: theme.colors.secondary }]}
           />
         )}
         <View style={styles.profileInfo}>
-          <Text style={styles.name}>{customer?.name || "Customer"}</Text>
-          <Text style={styles.phone}>
+          <Text style={[styles.name, { color: theme.colors.onSurface }]}>
+            {customer?.name || "Customer"}
+          </Text>
+          <Text style={[styles.phone, { color: secondaryText }]}>
             {customer?.phone || "No phone number"}
           </Text>
           {customer?.email ? (
-            <Text style={styles.email}>{customer.email}</Text>
+            <Text style={[styles.email, { color: secondaryText }]}>
+              {customer.email}
+            </Text>
           ) : null}
           <View style={styles.balanceContainer}>
-            <Text style={styles.balanceLabel}>Current Balance:</Text>
+            <Text style={[styles.balanceLabel, { color: secondaryText }]}>
+              Current Balance:
+            </Text>
             <Text
               style={[
                 styles.balance,
@@ -174,7 +193,9 @@ const CustomerDetailScreen = ({ route, navigation }) => {
         </View>
       </Surface>
 
-      <Text style={styles.sectionTitle}>Transaction History</Text>
+      <Text style={[styles.sectionTitle, { color: theme.colors.onBackground }]}>
+        Transaction History
+      </Text>
 
       <FlatList
         data={filteredTransactions}
@@ -183,6 +204,9 @@ const CustomerDetailScreen = ({ route, navigation }) => {
           <TransactionItem
             transaction={item}
             onMarkPaid={handleMarkPaid}
+            onAddPayment={(tx) =>
+              navigation.navigate("AddPayment", { transactionId: tx.id })
+            }
             onDelete={handleDelete}
             showCustomerName={false}
           />
@@ -193,7 +217,7 @@ const CustomerDetailScreen = ({ route, navigation }) => {
               value={transactionFilter}
               onValueChange={setTransactionFilter}
               buttons={[
-                { value: "unpaid", label: "Unpaid", icon: "clock-outline" },
+                { value: "unpaid", label: "Owing", icon: "clock-outline" },
                 { value: "paid", label: "Paid", icon: "check-circle-outline" },
                 { value: "all", label: "All", icon: "format-list-bulleted" },
               ]}
@@ -215,7 +239,7 @@ const CustomerDetailScreen = ({ route, navigation }) => {
       />
 
       <FAB
-        style={styles.fab}
+        style={[styles.fab, { backgroundColor: theme.colors.secondary }]}
         icon="plus"
         label="Add Loan"
         onPress={() =>
@@ -232,7 +256,6 @@ const CustomerDetailScreen = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F3F4F6",
   },
   profileCard: {
     margin: 16,
@@ -241,7 +264,6 @@ const styles = StyleSheet.create({
     elevation: 4,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff",
   },
   avatar: {
     backgroundColor: "#6366F1",
@@ -253,16 +275,13 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 24,
     fontWeight: "bold",
-    color: "#1F2937",
   },
   phone: {
     fontSize: 14,
-    color: "#6B7280",
     marginTop: 4,
   },
   email: {
     fontSize: 13,
-    color: "#6B7280",
     marginTop: 2,
   },
   balanceContainer: {
@@ -272,7 +291,6 @@ const styles = StyleSheet.create({
   },
   balanceLabel: {
     fontSize: 14,
-    color: "#6B7280",
     marginRight: 8,
   },
   balance: {
@@ -282,7 +300,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: "bold",
-    color: "#374151",
     marginHorizontal: 16,
     marginBottom: 8,
     marginTop: 8,
@@ -301,7 +318,6 @@ const styles = StyleSheet.create({
     margin: 16,
     right: 0,
     bottom: 0,
-    backgroundColor: "#6366F1",
   },
   loadingState: {
     padding: 16,

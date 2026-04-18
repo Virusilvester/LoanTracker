@@ -13,13 +13,22 @@ import {
   Appbar,
   HelperText,
   Avatar,
+  useTheme,
 } from "react-native-paper";
-import { deleteCustomer, getTransactions, updateCustomer } from "../database/database";
-import { cancelOverdueReminder, cancelReminder } from "../services/notifications";
+import {
+  deleteCustomer,
+  getTransactions,
+  updateCustomer,
+} from "../database/database";
+import {
+  cancelOverdueReminder,
+  cancelReminder,
+} from "../services/notifications";
 import { pickImage, takePhoto } from "../utils/photos";
 import { getInitials } from "../utils/helpers";
 
 const EditCustomerScreen = ({ route, navigation }) => {
+  const theme = useTheme();
   const { customer } = route.params;
   const [name, setName] = useState(customer?.name || "");
   const [phone, setPhone] = useState(customer?.phone || "");
@@ -94,7 +103,9 @@ const EditCustomerScreen = ({ route, navigation }) => {
   };
 
   return (
-    <View style={styles.container}>
+    <View
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+    >
       <Appbar.Header>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
         <Appbar.Content title="Edit Customer" />
@@ -107,7 +118,11 @@ const EditCustomerScreen = ({ route, navigation }) => {
               onPress={() =>
                 Alert.alert("Remove Photo", "Remove the current photo?", [
                   { text: "Cancel", style: "cancel" },
-                  { text: "Remove", style: "destructive", onPress: () => setPhoto(null) },
+                  {
+                    text: "Remove",
+                    style: "destructive",
+                    onPress: () => setPhoto(null),
+                  },
                 ])
               }
             >
@@ -185,7 +200,10 @@ const EditCustomerScreen = ({ route, navigation }) => {
           mode="contained"
           onPress={handleSave}
           loading={loading}
-          style={styles.saveButton}
+          style={[
+            styles.saveButton,
+            { backgroundColor: theme.colors.secondary },
+          ]}
           contentStyle={styles.buttonContent}
         >
           Save Changes
@@ -208,7 +226,6 @@ const EditCustomerScreen = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
   },
   content: {
     padding: 16,
@@ -235,12 +252,10 @@ const styles = StyleSheet.create({
   },
   input: {
     marginBottom: 4,
-    backgroundColor: "#fff",
   },
   saveButton: {
     marginTop: 24,
     borderRadius: 8,
-    backgroundColor: "#6366F1",
   },
   deleteButton: {
     marginTop: 12,

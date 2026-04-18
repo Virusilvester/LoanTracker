@@ -1,17 +1,36 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
-import { Surface } from "react-native-paper";
+import { Surface, useTheme } from "react-native-paper";
 import { formatCurrency } from "../utils/helpers";
 
-const StatCard = ({ title, amount, count, color }) => (
-  <Surface style={[styles.statCard, { borderTopColor: color }]}>
-    <Text style={styles.statTitle}>{title}</Text>
-    <Text style={[styles.statAmount, { color }]}>{formatCurrency(amount)}</Text>
-    <Text style={styles.statCount}>{count} transactions</Text>
-  </Surface>
-);
+const StatCard = ({ title, amount, count, color }) => {
+  const theme = useTheme();
+  const secondaryText = theme.colors.onSurfaceVariant || "#6B7280";
+
+  return (
+    <Surface
+      style={[
+        styles.statCard,
+        { borderTopColor: color, backgroundColor: theme.colors.surface },
+      ]}
+    >
+      <Text style={[styles.statTitle, { color: secondaryText }]}>{title}</Text>
+      <Text style={[styles.statAmount, { color }]}>
+        {formatCurrency(amount)}
+      </Text>
+      <Text style={[styles.statCount, { color: secondaryText }]}>
+        {count} transactions
+      </Text>
+    </Surface>
+  );
+};
 
 const DashboardStats = ({ stats }) => {
+  const theme = useTheme();
+  const onPrimary = theme.colors.onPrimary || "#fff";
+  const onPrimaryMuted =
+    theme.colors.onPrimaryContainer || theme.colors.onPrimary || "#94A3B8";
+
   return (
     <View style={styles.container}>
       <View style={styles.row}>
@@ -28,9 +47,15 @@ const DashboardStats = ({ stats }) => {
           color="#EF4444"
         />
       </View>
-      <View style={styles.summaryCard}>
-        <Text style={styles.summaryLabel}>Active Customers</Text>
-        <Text style={styles.summaryValue}>{stats.total_customers || 0}</Text>
+      <View
+        style={[styles.summaryCard, { backgroundColor: theme.colors.primary }]}
+      >
+        <Text style={[styles.summaryLabel, { color: onPrimaryMuted }]}>
+          Active Customers
+        </Text>
+        <Text style={[styles.summaryValue, { color: onPrimary }]}>
+          {stats.total_customers || 0}
+        </Text>
       </View>
     </View>
   );
@@ -51,12 +76,10 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     elevation: 2,
-    backgroundColor: "#fff",
     borderTopWidth: 4,
   },
   statTitle: {
     fontSize: 12,
-    color: "#6B7280",
     fontWeight: "600",
     textTransform: "uppercase",
   },
@@ -67,24 +90,20 @@ const styles = StyleSheet.create({
   },
   statCount: {
     fontSize: 11,
-    color: "#9CA3AF",
   },
   summaryCard: {
     marginHorizontal: 4,
     padding: 16,
     borderRadius: 12,
     elevation: 2,
-    backgroundColor: "#1E3A5F",
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
   summaryLabel: {
-    color: "#94A3B8",
     fontSize: 14,
   },
   summaryValue: {
-    color: "#fff",
     fontSize: 24,
     fontWeight: "bold",
   },

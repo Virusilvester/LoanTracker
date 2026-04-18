@@ -1,5 +1,11 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { View, FlatList, StyleSheet, RefreshControl } from "react-native";
+import React, { useState, useCallback } from "react";
+import {
+  View,
+  FlatList,
+  StyleSheet,
+  RefreshControl,
+  BackHandler,
+} from "react-native";
 import {
   FAB,
   Searchbar,
@@ -7,37 +13,22 @@ import {
   Snackbar,
   SegmentedButtons,
   Text,
+  useTheme,
 } from "react-native-paper";
 import { useFocusEffect } from "@react-navigation/native";
 import CustomerCard from "../components/CustomerCard";
 import DashboardStats from "../components/DashboardStats";
-import {
-  getCustomers,
-  getDashboardStats,
-  initDatabase,
-} from "../database/database";
+import { getCustomers, getDashboardStats } from "../database/database";
 
 const HomeScreen = ({ navigation }) => {
+  const theme = useTheme();
   const [customers, setCustomers] = useState([]);
   const [stats, setStats] = useState({});
   const [searchQuery, setSearchQuery] = useState("");
   const [customerFilter, setCustomerFilter] = useState("all");
   const [refreshing, setRefreshing] = useState(false);
-  const [dbInitialized, setDbInitialized] = useState(false);
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
-
-  useEffect(() => {
-    initDatabase()
-      .then(() => {
-        setDbInitialized(true);
-        loadData();
-      })
-      .catch((error) => {
-        console.error(error);
-        showSnackbar("Error initializing database");
-      });
-  }, []);
 
   const loadData = useCallback(async () => {
     try {
@@ -55,16 +46,30 @@ const HomeScreen = ({ navigation }) => {
 
   useFocusEffect(
     useCallback(() => {
-      if (!dbInitialized) return;
       loadData();
-    }, [dbInitialized, loadData]),
+    }, [loadData]),
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        BackHandler.exitApp();
+        return true;
+      };
+
+      const subscription = BackHandler.addEventListener(
+        "hardwareBackPress",
+        onBackPress,
+      );
+      return () => subscription.remove();
+    }, []),
   );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await loadData();
     setRefreshing(false);
-  }, []);
+  }, [loadData]);
 
   const showSnackbar = (message) => {
     setSnackbarMessage(message);
@@ -84,8 +89,12 @@ const HomeScreen = ({ navigation }) => {
     );
 
   return (
-    <View style={styles.container}>
-      <Appbar.Header style={styles.header}>
+    <View
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+    >
+      <Appbar.Header
+        style={[styles.header, { backgroundColor: theme.colors.primary }]}
+      >
         <Appbar.Content title="Loan Tracker" subtitle="Manage customer loans" />
         <Appbar.Action
           icon="format-list-bulleted"
@@ -144,7 +153,7 @@ const HomeScreen = ({ navigation }) => {
       />
 
       <FAB
-        style={styles.fab}
+        style={[styles.fab, { backgroundColor: theme.colors.secondary }]}
         icon="plus"
         label="Add Customer"
         onPress={() => navigation.navigate("AddCustomer")}

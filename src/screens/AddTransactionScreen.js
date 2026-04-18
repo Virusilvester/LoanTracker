@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { View, StyleSheet, ScrollView } from "react-native";
 import {
   TextInput,
@@ -7,20 +7,25 @@ import {
   HelperText,
   Switch,
   Text,
+  useTheme,
 } from "react-native-paper";
 import { addTransaction } from "../database/database";
 import {
   requestNotificationPermissions,
   schedulePaymentReminder,
 } from "../services/notifications";
-import { formatCurrency } from "../utils/helpers";
+import { formatCurrency, formatDate } from "../utils/helpers";
+import { PreferencesContext } from "../contexts/PreferencesContext";
 
 const AddTransactionScreen = ({ route, navigation }) => {
+  const theme = useTheme();
   const { customerId, customerName } = route.params || {};
+  const { defaultDueDays } = useContext(PreferencesContext);
   const [itemName, setItemName] = useState("");
   const [amount, setAmount] = useState("");
   const [quantity, setQuantity] = useState("1");
   const [notes, setNotes] = useState("");
+  const [dueDays, setDueDays] = useState(String(defaultDueDays || 30));
   const [reminderEnabled, setReminderEnabled] = useState(true);
   const [reminderDays, setReminderDays] = useState("7");
   const [loading, setLoading] = useState(false);
@@ -32,9 +37,19 @@ const AddTransactionScreen = ({ route, navigation }) => {
       ? formatCurrency(parsedAmount)
       : null;
 
+  const parsedDueDays = parseInt(dueDays, 10);
+  const dueDateIso =
+    !Number.isNaN(parsedDueDays) && parsedDueDays > 0
+      ? new Date(Date.now() + parsedDueDays * 24 * 60 * 60 * 1000).toISOString()
+      : null;
+
   useEffect(() => {
     requestNotificationPermissions();
   }, []);
+
+  useEffect(() => {
+    setDueDays(String(defaultDueDays || 30));
+  }, [defaultDueDays]);
 
   const validate = () => {
     const newErrors = {};
@@ -42,6 +57,9 @@ const AddTransactionScreen = ({ route, navigation }) => {
     if (!itemName.trim()) newErrors.itemName = "Item name is required";
     if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
       newErrors.amount = "Valid amount is required";
+    }
+    if (dueDays && (Number.isNaN(parsedDueDays) || parsedDueDays <= 0)) {
+      newErrors.dueDays = "Enter a valid due period";
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -58,6 +76,7 @@ const AddTransactionScreen = ({ route, navigation }) => {
         parseFloat(amount),
         parseInt(quantity) || 1,
         notes,
+        dueDateIso,
       );
 
       // Schedule reminder if enabled
@@ -79,7 +98,9 @@ const AddTransactionScreen = ({ route, navigation }) => {
   };
 
   return (
-    <View style={styles.container}>
+    <View
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+    >
       <Appbar.Header>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
         <Appbar.Content
@@ -143,14 +164,47 @@ const AddTransactionScreen = ({ route, navigation }) => {
           placeholder="Condition of item, due date, etc."
         />
 
+        {/* Due Date Section */}
+        <View
+          style={[styles.dueSection, { backgroundColor: theme.colors.surface }]}
+        >
+          <Text style={[styles.dueTitle, { color: theme.colors.onSurface }]}>
+            Due Date
+          </Text>
+          <TextInput
+            label="Due in (days)"
+            value={dueDays}
+            onChangeText={setDueDays}
+            mode="outlined"
+            style={styles.dueInput}
+            keyboardType="number-pad"
+            error={!!errors.dueDays}
+          />
+          <HelperText type="error" visible={!!errors.dueDays}>
+            {errors.dueDays}
+          </HelperText>
+          <HelperText type="info" visible={!!dueDateIso && !errors.dueDays}>
+            Due date: {dueDateIso ? formatDate(dueDateIso) : ""}
+          </HelperText>
+        </View>
+
         {/* Reminder Section */}
-        <View style={styles.reminderSection}>
+        <View
+          style={[
+            styles.reminderSection,
+            { backgroundColor: theme.colors.surface },
+          ]}
+        >
           <View style={styles.reminderHeader}>
-            <Text style={styles.reminderTitle}>Payment Reminder</Text>
+            <Text
+              style={[styles.reminderTitle, { color: theme.colors.onSurface }]}
+            >
+              Payment Reminder
+            </Text>
             <Switch
               value={reminderEnabled}
               onValueChange={setReminderEnabled}
-              color="#6366F1"
+              color={theme.colors.secondary}
             />
           </View>
 
@@ -170,7 +224,7 @@ const AddTransactionScreen = ({ route, navigation }) => {
           mode="contained"
           onPress={handleSave}
           loading={loading}
-          style={styles.button}
+          style={[styles.button, { backgroundColor: theme.colors.secondary }]}
           contentStyle={styles.buttonContent}
         >
           Record Loan
@@ -183,7 +237,6 @@ const AddTransactionScreen = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
   },
   content: {
     padding: 16,
@@ -200,14 +253,24 @@ const styles = StyleSheet.create({
   },
   input: {
     marginBottom: 4,
-    backgroundColor: "#fff",
   },
   reminderSection: {
     marginTop: 16,
     padding: 16,
-    backgroundColor: "#F3F4F6",
     borderRadius: 12,
   },
+  dueSection: {
+    marginTop: 16,
+    padding: 16,
+    borderRadius: 12,
+  },
+  dueTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#374151",
+    marginBottom: 8,
+  },
+  dueInput: {},
   reminderHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -216,16 +279,13 @@ const styles = StyleSheet.create({
   reminderTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#374151",
   },
   reminderInput: {
     marginTop: 12,
-    backgroundColor: "#fff",
   },
   button: {
     marginTop: 24,
     borderRadius: 8,
-    backgroundColor: "#6366F1",
   },
   buttonContent: {
     paddingVertical: 8,
