@@ -10,6 +10,8 @@ import AddCustomerScreen from "./src/screens/AddCustomerScreen";
 import CustomerDetailScreen from "./src/screens/CustomerDetailScreen";
 import AddTransactionScreen from "./src/screens/AddTransactionScreen";
 import SettingsScreen from "./src/screens/SettingsScreen";
+import TransactionsScreen from "./src/screens/TransactionsScreen";
+import EditCustomerScreen from "./src/screens/EditCustomerScreen";
 
 import {
   requestNotificationPermissions,
@@ -56,10 +58,12 @@ export default function App() {
             name="CustomerDetail"
             component={CustomerDetailScreen}
           />
+          <Stack.Screen name="EditCustomer" component={EditCustomerScreen} />
           <Stack.Screen
             name="AddTransaction"
             component={AddTransactionScreen}
           />
+          <Stack.Screen name="Transactions" component={TransactionsScreen} />
           <Stack.Screen name="Settings" component={SettingsScreen} />
         </Stack.Navigator>
       </NavigationContainer>

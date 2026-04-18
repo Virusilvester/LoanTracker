@@ -1,6 +1,9 @@
 import * as Notifications from "expo-notifications";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+const reminderKey = (transactionId) => `reminder_${transactionId}`;
+const overdueKey = (transactionId) => `overdue_${transactionId}`;
+
 // Configure notifications
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -44,15 +47,23 @@ export const schedulePaymentReminder = async (
   });
 
   // Store reminder ID in AsyncStorage for cancellation if paid
-  await AsyncStorage.setItem(`reminder_${transactionId}`, identifier);
+  await AsyncStorage.setItem(reminderKey(transactionId), identifier);
   return identifier;
 };
 
 export const cancelReminder = async (transactionId) => {
-  const identifier = await AsyncStorage.getItem(`reminder_${transactionId}`);
+  const identifier = await AsyncStorage.getItem(reminderKey(transactionId));
   if (identifier) {
     await Notifications.cancelScheduledNotificationAsync(identifier);
-    await AsyncStorage.removeItem(`reminder_${transactionId}`);
+    await AsyncStorage.removeItem(reminderKey(transactionId));
+  }
+};
+
+export const cancelOverdueReminder = async (transactionId) => {
+  const identifier = await AsyncStorage.getItem(overdueKey(transactionId));
+  if (identifier) {
+    await Notifications.cancelScheduledNotificationAsync(identifier);
+    await AsyncStorage.removeItem(overdueKey(transactionId));
   }
 };
 
@@ -61,8 +72,13 @@ export const checkAndScheduleOverdueReminders = async () => {
   const overdue = await getOverdueTransactions();
 
   for (const transaction of overdue) {
+    const alreadyScheduled = await AsyncStorage.getItem(
+      overdueKey(transaction.id),
+    );
+    if (alreadyScheduled) continue;
+
     // Schedule daily reminder for overdue items
-    await Notifications.scheduleNotificationAsync({
+    const identifier = await Notifications.scheduleNotificationAsync({
       content: {
         title: "⚠️ Overdue Payment",
         body: `${transaction.customer_name} - ${transaction.item_name} ($${transaction.amount}) is overdue!`,
@@ -74,5 +90,7 @@ export const checkAndScheduleOverdueReminders = async () => {
         repeats: true,
       },
     });
+
+    await AsyncStorage.setItem(overdueKey(transaction.id), identifier);
   }
 };

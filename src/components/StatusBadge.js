@@ -1,15 +1,17 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
-import { getStatusColor, getDaysOverdue } from "../utils/helpers";
+import { getStatusColor, getDaysOverdue, getDaysUntilDue } from "../utils/helpers";
 
 const StatusBadge = ({ status, dateBorrowed }) => {
   const daysOverdue = status === "unpaid" ? getDaysOverdue(dateBorrowed) : 0;
+  const daysUntilDue = status === "unpaid" ? getDaysUntilDue(dateBorrowed) : 0;
   const color = getStatusColor(status, daysOverdue);
 
   const getLabel = () => {
     if (status === "paid") return "✓ Paid";
     if (daysOverdue > 0) return `⚠️ ${daysOverdue}d overdue`;
-    return "⏳ Pending";
+    if (daysUntilDue === 0) return "⏳ Due today";
+    return `⏳ Due in ${daysUntilDue}d`;
   };
 
   return (

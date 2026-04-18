@@ -13,9 +13,10 @@ import {
   requestNotificationPermissions,
   schedulePaymentReminder,
 } from "../services/notifications";
+import { formatCurrency } from "../utils/helpers";
 
 const AddTransactionScreen = ({ route, navigation }) => {
-  const { customerId, customerName } = route.params;
+  const { customerId, customerName } = route.params || {};
   const [itemName, setItemName] = useState("");
   const [amount, setAmount] = useState("");
   const [quantity, setQuantity] = useState("1");
@@ -25,12 +26,19 @@ const AddTransactionScreen = ({ route, navigation }) => {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
+  const parsedAmount = parseFloat(amount);
+  const amountPreview =
+    !Number.isNaN(parsedAmount) && parsedAmount > 0
+      ? formatCurrency(parsedAmount)
+      : null;
+
   useEffect(() => {
     requestNotificationPermissions();
   }, []);
 
   const validate = () => {
     const newErrors = {};
+    if (!customerId) newErrors.customerId = "Customer is required";
     if (!itemName.trim()) newErrors.itemName = "Item name is required";
     if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
       newErrors.amount = "Valid amount is required";
@@ -56,8 +64,8 @@ const AddTransactionScreen = ({ route, navigation }) => {
       if (reminderEnabled) {
         await schedulePaymentReminder(
           transactionId,
-          customerName,
-          `$${amount}`,
+          customerName || "Customer",
+          formatCurrency(parseFloat(amount) || 0),
           parseInt(reminderDays) || 7,
         );
       }
@@ -74,10 +82,16 @@ const AddTransactionScreen = ({ route, navigation }) => {
     <View style={styles.container}>
       <Appbar.Header>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title="New Loan" />
+        <Appbar.Content
+          title="New Loan"
+          subtitle={customerName ? `For ${customerName}` : undefined}
+        />
       </Appbar.Header>
 
       <ScrollView style={styles.content}>
+        <HelperText type="error" visible={!!errors.customerId}>
+          {errors.customerId}
+        </HelperText>
         <TextInput
           label="Item Name *"
           value={itemName}
@@ -113,6 +127,9 @@ const AddTransactionScreen = ({ route, navigation }) => {
         </View>
         <HelperText type="error" visible={!!errors.amount}>
           {errors.amount}
+        </HelperText>
+        <HelperText type="info" visible={!!amountPreview}>
+          Recorded amount: {amountPreview}
         </HelperText>
 
         <TextInput

@@ -65,24 +65,6 @@ const styles = StyleSheet.create({
   avatar: {
     backgroundColor: "#6366F1",
   },
-  card: {
-    marginHorizontal: 16,
-    marginVertical: 6,
-    elevation: 2,
-    borderRadius: 12,
-    backgroundColor: "#fff",
-  },
-  cardWithDebt: {
-    borderLeftWidth: 4,
-    borderLeftColor: "#EF4444",
-  },
-  content: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  avatar: {
-    backgroundColor: "#6366F1",
-  },
   info: {
     marginLeft: 16,
     flex: 1,

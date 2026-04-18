@@ -20,7 +20,7 @@
     },
 
     "android": {
-      "package": "com.loantracker.app", // ✅ REQUIRED FIX
+      "package": "com.loantracker.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"

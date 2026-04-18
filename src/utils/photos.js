@@ -69,6 +69,17 @@ export const takePhoto = async () => {
     const fileName = `customer_${Date.now()}.jpg`;
     const newPath = `${FileSystem.documentDirectory}photos/${fileName}`;
 
+    // Ensure directory exists
+    const dirInfo = await FileSystem.getInfoAsync(
+      `${FileSystem.documentDirectory}photos`,
+    );
+    if (!dirInfo.exists) {
+      await FileSystem.makeDirectoryAsync(
+        `${FileSystem.documentDirectory}photos`,
+        { intermediates: true },
+      );
+    }
+
     await FileSystem.copyAsync({
       from: result.assets[0].uri,
       to: newPath,

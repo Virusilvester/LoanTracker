@@ -4,21 +4,33 @@ import { IconButton, Surface } from "react-native-paper";
 import StatusBadge from "./StatusBadge";
 import { formatCurrency, formatDate } from "../utils/helpers";
 
-const TransactionItem = ({ transaction, onMarkPaid, onDelete }) => {
-  return (
+const TransactionItem = ({
+  transaction,
+  onMarkPaid,
+  onDelete,
+  onPress,
+  showCustomerName = true,
+}) => {
+  const content = (
     <Surface style={styles.container}>
       <View style={styles.header}>
         <View style={styles.itemInfo}>
           <Text style={styles.itemName}>{transaction.item_name}</Text>
-          <Text style={styles.customerName}>{transaction.customer_name}</Text>
+          {showCustomerName ? (
+            <Text style={styles.customerName}>{transaction.customer_name}</Text>
+          ) : null}
         </View>
         <Text style={styles.amount}>{formatCurrency(transaction.amount)}</Text>
       </View>
 
       <View style={styles.details}>
-        <Text style={styles.date}>
+        <Text style={styles.meta}>
           Borrowed: {formatDate(transaction.date_borrowed)}
+          {transaction.quantity > 1 ? ` • Qty: ${transaction.quantity}` : ""}
         </Text>
+        {transaction.status === "paid" && transaction.date_paid ? (
+          <Text style={styles.meta}>Paid: {formatDate(transaction.date_paid)}</Text>
+        ) : null}
         {transaction.notes ? (
           <Text style={styles.notes}>📝 {transaction.notes}</Text>
         ) : null}
@@ -34,14 +46,14 @@ const TransactionItem = ({ transaction, onMarkPaid, onDelete }) => {
           {transaction.status === "unpaid" && (
             <IconButton
               icon="check-circle"
-              color="#10B981"
+              iconColor="#10B981"
               size={24}
               onPress={() => onMarkPaid(transaction.id)}
             />
           )}
           <IconButton
             icon="delete"
-            color="#EF4444"
+            iconColor="#EF4444"
             size={24}
             onPress={() => onDelete(transaction.id)}
           />
@@ -49,6 +61,16 @@ const TransactionItem = ({ transaction, onMarkPaid, onDelete }) => {
       </View>
     </Surface>
   );
+
+  if (onPress) {
+    return (
+      <TouchableOpacity onPress={onPress} activeOpacity={0.75}>
+        {content}
+      </TouchableOpacity>
+    );
+  }
+
+  return content;
 };
 
 const styles = StyleSheet.create({
@@ -87,7 +109,7 @@ const styles = StyleSheet.create({
   details: {
     marginBottom: 12,
   },
-  date: {
+  meta: {
     fontSize: 13,
     color: "#6B7280",
   },

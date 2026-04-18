@@ -18,13 +18,13 @@ const DashboardStats = ({ stats }) => {
         <StatCard
           title="Total Paid"
           amount={stats.total_paid || 0}
-          count={stats.total_transactions || 0}
+          count={stats.paid_count || 0}
           color="#10B981"
         />
         <StatCard
           title="Outstanding"
           amount={stats.total_owed || 0}
-          count={stats.total_transactions || 0}
+          count={stats.unpaid_count || 0}
           color="#EF4444"
         />
       </View>

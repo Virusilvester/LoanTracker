@@ -14,15 +14,17 @@ import {
   HelperText,
   Avatar,
 } from "react-native-paper";
-import { addCustomer } from "../database/database";
+import { deleteCustomer, getTransactions, updateCustomer } from "../database/database";
+import { cancelOverdueReminder, cancelReminder } from "../services/notifications";
 import { pickImage, takePhoto } from "../utils/photos";
 import { getInitials } from "../utils/helpers";
 
-const AddCustomerScreen = ({ navigation }) => {
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
-  const [photo, setPhoto] = useState(null);
+const EditCustomerScreen = ({ route, navigation }) => {
+  const { customer } = route.params;
+  const [name, setName] = useState(customer?.name || "");
+  const [phone, setPhone] = useState(customer?.phone || "");
+  const [email, setEmail] = useState(customer?.email || "");
+  const [photo, setPhoto] = useState(customer?.photo || null);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
@@ -49,28 +51,66 @@ const AddCustomerScreen = ({ navigation }) => {
 
     setLoading(true);
     try {
-      await addCustomer(name, phone, email, photo);
+      await updateCustomer(customer.id, name, phone, email, photo);
       navigation.goBack();
     } catch (error) {
       console.error(error);
-      Alert.alert("Error", "Failed to save customer");
+      Alert.alert("Error", "Failed to update customer");
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDelete = () => {
+    Alert.alert(
+      "Delete Customer",
+      "This will delete the customer and all their transactions. Continue?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            setLoading(true);
+            try {
+              const transactions = await getTransactions(customer.id);
+              for (const t of transactions) {
+                await cancelReminder(t.id);
+                await cancelOverdueReminder(t.id);
+              }
+
+              await deleteCustomer(customer.id);
+              navigation.popToTop();
+            } catch (error) {
+              console.error(error);
+              Alert.alert("Error", "Could not delete customer");
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ],
+    );
   };
 
   return (
     <View style={styles.container}>
       <Appbar.Header>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title="New Customer" />
+        <Appbar.Content title="Edit Customer" />
       </Appbar.Header>
 
       <ScrollView style={styles.content}>
-        {/* Photo Section */}
         <View style={styles.photoSection}>
           {photo ? (
-            <TouchableOpacity onPress={() => setPhoto(null)}>
+            <TouchableOpacity
+              onPress={() =>
+                Alert.alert("Remove Photo", "Remove the current photo?", [
+                  { text: "Cancel", style: "cancel" },
+                  { text: "Remove", style: "destructive", onPress: () => setPhoto(null) },
+                ])
+              }
+            >
               <Image source={{ uri: photo }} style={styles.photo} />
             </TouchableOpacity>
           ) : (
@@ -87,6 +127,7 @@ const AddCustomerScreen = ({ navigation }) => {
               onPress={handleTakePhoto}
               style={styles.photoButton}
               icon="camera"
+              disabled={loading}
             >
               Camera
             </Button>
@@ -95,6 +136,7 @@ const AddCustomerScreen = ({ navigation }) => {
               onPress={handlePickImage}
               style={styles.photoButton}
               icon="image"
+              disabled={loading}
             >
               Gallery
             </Button>
@@ -108,6 +150,7 @@ const AddCustomerScreen = ({ navigation }) => {
           mode="outlined"
           style={styles.input}
           error={!!errors.name}
+          disabled={loading}
         />
         <HelperText type="error" visible={!!errors.name}>
           {errors.name}
@@ -121,6 +164,7 @@ const AddCustomerScreen = ({ navigation }) => {
           style={styles.input}
           keyboardType="phone-pad"
           error={!!errors.phone}
+          disabled={loading}
         />
         <HelperText type="error" visible={!!errors.phone}>
           {errors.phone}
@@ -134,16 +178,27 @@ const AddCustomerScreen = ({ navigation }) => {
           style={styles.input}
           keyboardType="email-address"
           autoCapitalize="none"
+          disabled={loading}
         />
 
         <Button
           mode="contained"
           onPress={handleSave}
           loading={loading}
-          style={styles.button}
+          style={styles.saveButton}
           contentStyle={styles.buttonContent}
         >
-          Save Customer
+          Save Changes
+        </Button>
+
+        <Button
+          mode="outlined"
+          onPress={handleDelete}
+          disabled={loading}
+          style={styles.deleteButton}
+          textColor="#EF4444"
+        >
+          Delete Customer
         </Button>
       </ScrollView>
     </View>
@@ -182,14 +237,19 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     backgroundColor: "#fff",
   },
-  button: {
+  saveButton: {
     marginTop: 24,
     borderRadius: 8,
     backgroundColor: "#6366F1",
+  },
+  deleteButton: {
+    marginTop: 12,
+    borderRadius: 8,
+    borderColor: "#EF4444",
   },
   buttonContent: {
     paddingVertical: 8,
   },
 });
 
-export default AddCustomerScreen;
+export default EditCustomerScreen;

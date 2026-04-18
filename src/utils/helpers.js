@@ -1,5 +1,7 @@
 import { format, differenceInDays, parseISO } from "date-fns";
 
+export const CREDIT_PERIOD_DAYS = 30;
+
 export const formatCurrency = (amount) => {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -23,7 +25,19 @@ export const getDaysOverdue = (dateBorrowed) => {
     const borrowed = parseISO(dateBorrowed);
     const today = new Date();
     const days = differenceInDays(today, borrowed);
-    return days > 30 ? days - 30 : 0; // Assuming 30 days credit period
+    return days > CREDIT_PERIOD_DAYS ? days - CREDIT_PERIOD_DAYS : 0;
+  } catch {
+    return 0;
+  }
+};
+
+export const getDaysUntilDue = (dateBorrowed) => {
+  try {
+    const borrowed = parseISO(dateBorrowed);
+    const today = new Date();
+    const days = differenceInDays(today, borrowed);
+    const remaining = CREDIT_PERIOD_DAYS - days;
+    return remaining > 0 ? remaining : 0;
   } catch {
     return 0;
   }

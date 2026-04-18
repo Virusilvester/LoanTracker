@@ -59,6 +59,52 @@ export const addCustomer = (name, phone, email, photo = null) => {
   });
 };
 
+export const getCustomerById = (customerId) => {
+  return new Promise((resolve, reject) => {
+    db.transaction((tx) => {
+      tx.executeSql(
+        "SELECT * FROM customers WHERE id = ?",
+        [customerId],
+        (_, { rows }) => resolve(rows._array[0] || null),
+        (_, error) => reject(error),
+      );
+    });
+  });
+};
+
+export const updateCustomer = (customerId, name, phone, email, photo = null) => {
+  return new Promise((resolve, reject) => {
+    db.transaction((tx) => {
+      tx.executeSql(
+        "UPDATE customers SET name = ?, phone = ?, email = ?, photo = ? WHERE id = ?",
+        [name, phone, email, photo, customerId],
+        (_, result) => resolve(result),
+        (_, error) => reject(error),
+      );
+    });
+  });
+};
+
+export const deleteCustomer = (customerId) => {
+  return new Promise((resolve, reject) => {
+    db.transaction((tx) => {
+      tx.executeSql(
+        "DELETE FROM transactions WHERE customer_id = ?",
+        [customerId],
+        () => {
+          tx.executeSql(
+            "DELETE FROM customers WHERE id = ?",
+            [customerId],
+            (_, result) => resolve(result),
+            (_, error) => reject(error),
+          );
+        },
+        (_, error) => reject(error),
+      );
+    });
+  });
+};
+
 export const getCustomers = () => {
   return new Promise((resolve, reject) => {
     db.transaction((tx) => {
@@ -155,6 +201,8 @@ export const getDashboardStats = () => {
         `SELECT 
           COUNT(DISTINCT c.id) as total_customers,
           COUNT(t.id) as total_transactions,
+          SUM(CASE WHEN t.status = 'unpaid' THEN 1 ELSE 0 END) as unpaid_count,
+          SUM(CASE WHEN t.status = 'paid' THEN 1 ELSE 0 END) as paid_count,
           SUM(CASE WHEN t.status = 'unpaid' THEN t.amount ELSE 0 END) as total_owed,
           SUM(CASE WHEN t.status = 'paid' THEN t.amount ELSE 0 END) as total_paid
          FROM customers c
@@ -188,7 +236,7 @@ export const getOverdueTransactions = () => {
          FROM transactions t
          JOIN customers c ON t.customer_id = c.id
          WHERE t.status = 'unpaid' 
-         AND date(t.date_borrowed) <= date('now', '-7 days')`,
+         AND date(t.date_borrowed) <= date('now', '-30 days')`,
         [],
         (_, { rows }) => resolve(rows._array),
         (_, error) => reject(error),

@@ -5,8 +5,10 @@ import {
   Searchbar,
   Appbar,
   Snackbar,
-  IconButton,
+  SegmentedButtons,
+  Text,
 } from "react-native-paper";
+import { useFocusEffect } from "@react-navigation/native";
 import CustomerCard from "../components/CustomerCard";
 import DashboardStats from "../components/DashboardStats";
 import {
@@ -19,15 +21,25 @@ const HomeScreen = ({ navigation }) => {
   const [customers, setCustomers] = useState([]);
   const [stats, setStats] = useState({});
   const [searchQuery, setSearchQuery] = useState("");
+  const [customerFilter, setCustomerFilter] = useState("all");
   const [refreshing, setRefreshing] = useState(false);
+  const [dbInitialized, setDbInitialized] = useState(false);
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
 
   useEffect(() => {
-    initDatabase().then(() => loadData());
+    initDatabase()
+      .then(() => {
+        setDbInitialized(true);
+        loadData();
+      })
+      .catch((error) => {
+        console.error(error);
+        showSnackbar("Error initializing database");
+      });
   }, []);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       const [customerData, statsData] = await Promise.all([
         getCustomers(),
@@ -39,7 +51,14 @@ const HomeScreen = ({ navigation }) => {
       console.error(error);
       showSnackbar("Error loading data");
     }
-  };
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!dbInitialized) return;
+      loadData();
+    }, [dbInitialized, loadData]),
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -52,16 +71,26 @@ const HomeScreen = ({ navigation }) => {
     setSnackbarVisible(true);
   };
 
-  const filteredCustomers = customers.filter(
-    (customer) =>
-      customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (customer.phone && customer.phone.includes(searchQuery)),
-  );
+  const filteredCustomers = customers
+    .filter((customer) => {
+      if (customerFilter === "owing") return customer.owed_amount > 0;
+      if (customerFilter === "paid") return customer.owed_amount <= 0;
+      return true;
+    })
+    .filter(
+      (customer) =>
+        customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (customer.phone && customer.phone.includes(searchQuery)),
+    );
 
   return (
     <View style={styles.container}>
       <Appbar.Header style={styles.header}>
         <Appbar.Content title="Loan Tracker" subtitle="Manage customer loans" />
+        <Appbar.Action
+          icon="format-list-bulleted"
+          onPress={() => navigation.navigate("Transactions")}
+        />
         <Appbar.Action
           icon="cog"
           onPress={() => navigation.navigate("Settings")}
@@ -69,6 +98,18 @@ const HomeScreen = ({ navigation }) => {
       </Appbar.Header>
 
       <DashboardStats stats={stats} />
+
+      <View style={styles.filters}>
+        <SegmentedButtons
+          value={customerFilter}
+          onValueChange={setCustomerFilter}
+          buttons={[
+            { value: "all", label: "All", icon: "account-multiple" },
+            { value: "owing", label: "Owing", icon: "alert-circle-outline" },
+            { value: "paid", label: "Paid", icon: "check-circle-outline" },
+          ]}
+        />
+      </View>
 
       <Searchbar
         placeholder="Search customers..."
@@ -92,6 +133,14 @@ const HomeScreen = ({ navigation }) => {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
         contentContainerStyle={styles.list}
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyText}>No customers found</Text>
+            <Text style={styles.emptySubtext}>
+              Tap “Add Customer” to record your first customer.
+            </Text>
+          </View>
+        }
       />
 
       <FAB
@@ -125,6 +174,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     elevation: 2,
   },
+  filters: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+  },
   list: {
     paddingBottom: 80,
   },
@@ -134,6 +187,23 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: "#6366F1",
+  },
+  emptyState: {
+    alignItems: "center",
+    marginTop: 40,
+    paddingHorizontal: 24,
+  },
+  emptyText: {
+    fontSize: 18,
+    color: "#9CA3AF",
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: "#D1D5DB",
+    marginTop: 8,
+    textAlign: "center",
   },
 });
 
