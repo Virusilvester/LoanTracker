@@ -5,7 +5,7 @@ export const CREDIT_PERIOD_DAYS = 30;
 export const formatCurrency = (amount) => {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: "USD",
+    currency: "ZMW",
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(amount);
