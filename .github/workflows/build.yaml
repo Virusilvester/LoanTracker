@@ -1,21 +1,16 @@
-name: Build Android APK
+name: Android CI/CD
 
 on:
   push:
-    branches:
-      - main
-      - develop
-    tags:
-      - "v*"   # 🔥 Auto trigger on version tags
+    branches: [main, develop]
+    tags: ["v*"]
 
   pull_request:
-    branches:
-      - main
 
   workflow_dispatch:
     inputs:
       build_type:
-        description: "Build type (debug or release)"
+        description: "Build type"
         required: true
         default: "debug"
         type: choice
@@ -23,44 +18,86 @@ on:
           - debug
           - release
 
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build-android:
+  setup:
+    name: Setup Project Metadata
+    runs-on: ubuntu-latest
+    outputs:
+      app_name: ${{ steps.meta.outputs.app_name }}
+      version: ${{ steps.meta.outputs.version }}
+      mode: ${{ steps.mode.outputs.mode }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── Read app metadata dynamically ────────────────────────
+      - name: Extract app metadata
+        id: meta
+        run: |
+          APP_NAME=$(node -p "require('./app.json').expo.name")
+          VERSION=$(node -p "require('./app.json').expo.version")
+          echo "app_name=$APP_NAME" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      # ── Decide build mode ────────────────────────────────────
+      - name: Determine build mode
+        id: mode
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* || "${GITHUB_REF}" == "refs/heads/main" || "${{ github.event.inputs.build_type }}" == "release" ]]; then
+            echo "mode=release" >> $GITHUB_OUTPUT
+          else
+            echo "mode=debug" >> $GITHUB_OUTPUT
+          fi
+
+  build:
     name: Build Android APK
     runs-on: ubuntu-latest
+    needs: setup
+
+    env:
+      APP_NAME: ${{ needs.setup.outputs.app_name }}
+      VERSION: ${{ needs.setup.outputs.version }}
+      MODE: ${{ needs.setup.outputs.mode }}
+      EXPO_NO_TELEMETRY: "1"
 
     steps:
       # ── Checkout ─────────────────────────────────────────────
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      # ── Java ─────────────────────────────────────────────────
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: "17"
-          distribution: "temurin"
-
       # ── Node ─────────────────────────────────────────────────
-      - name: Set up Node.js
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
-          cache: "npm"
+          node-version: 20
+          cache: npm
 
-      # ── Dependencies ─────────────────────────────────────────
-      - name: Install Node dependencies
+      # ── Install deps ─────────────────────────────────────────
+      - name: Install dependencies
         run: npm ci
 
       # ── Expo prebuild ────────────────────────────────────────
-      - name: Run Expo prebuild
-        run: npx expo prebuild --platform android --no-install
+      - name: Expo prebuild
+        run: npx expo prebuild --platform android --no-install --non-interactive
+
+      # ── Java ─────────────────────────────────────────────────
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
 
       # ── Android SDK ──────────────────────────────────────────
-      - name: Set up Android SDK
+      - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
       # ── Gradle cache ─────────────────────────────────────────
-      - name: Cache Gradle packages
+      - name: Cache Gradle
         uses: actions/cache@v4
         with:
           path: |
@@ -70,31 +107,20 @@ jobs:
           restore-keys: |
             gradle-${{ runner.os }}-
 
-      # ── Determine build type ─────────────────────────────────
-      - name: Set build mode
-        id: build_mode
-        run: |
-          if [[ "${GITHUB_REF}" == refs/tags/v* || "${GITHUB_REF}" == "refs/heads/main" || "${{ github.event.inputs.build_type }}" == "release" ]]; then
-            echo "mode=release" >> $GITHUB_OUTPUT
-          else
-            echo "mode=debug" >> $GITHUB_OUTPUT
-          fi
-
       # ── Keystore (release only) ──────────────────────────────
-      - name: Decode keystore
-        if: steps.build_mode.outputs.mode == 'release'
+      - name: Decode Keystore
+        if: env.MODE == 'release'
         run: |
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/app/release.keystore
 
-      # ── Build Debug ──────────────────────────────────────────
+      # ── Build APK ────────────────────────────────────────────
       - name: Build Debug APK
-        if: steps.build_mode.outputs.mode == 'debug'
+        if: env.MODE == 'debug'
         working-directory: android
         run: ./gradlew assembleDebug --no-daemon
 
-      # ── Build Release ────────────────────────────────────────
       - name: Build Release APK
-        if: steps.build_mode.outputs.mode == 'release'
+        if: env.MODE == 'release'
         working-directory: android
         env:
           KEYSTORE_FILE: release.keystore
@@ -103,52 +129,54 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: ./gradlew assembleRelease --no-daemon
 
-      # ── Rename APK (tag builds) ──────────────────────────────
-      - name: Rename APK for release
-        if: startsWith(github.ref, 'refs/tags/v')
+      # ── Dynamic APK naming ───────────────────────────────────
+      - name: Rename APK
+        if: env.MODE == 'release'
         run: |
           VERSION=${GITHUB_REF#refs/tags/}
+          if [[ "${VERSION}" == "${GITHUB_REF}" ]]; then
+            VERSION="v${VERSION}"
+          fi
+
           mv android/app/build/outputs/apk/release/app-release.apk \
-             android/app/build/outputs/apk/release/NovelNest-${VERSION}.apk
+             android/app/build/outputs/apk/release/${APP_NAME}-${VERSION}.apk
 
-      # ── Upload Debug APK ─────────────────────────────────────
+      # ── Upload artifacts ─────────────────────────────────────
       - name: Upload Debug APK
-        if: steps.build_mode.outputs.mode == 'debug'
+        if: env.MODE == 'debug'
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug-${{ github.run_number }}
+          name: ${APP_NAME}-debug-${{ github.run_number }}
           path: android/app/build/outputs/apk/debug/app-debug.apk
-          retention-days: 7
 
-      # ── Upload Release APK ───────────────────────────────────
       - name: Upload Release APK
-        if: steps.build_mode.outputs.mode == 'release'
+        if: env.MODE == 'release'
         uses: actions/upload-artifact@v4
         with:
-          name: app-release-${{ github.run_number }}
-          path: |
-            android/app/build/outputs/apk/release/*.apk
-          retention-days: 30
+          name: ${APP_NAME}-release-${{ github.run_number }}
+          path: android/app/build/outputs/apk/release/*.apk
 
-      # ── Create GitHub Release (tags only) ────────────────────
-      - name: Create GitHub Release
+      # ── GitHub Release (tags only) ──────────────────────────
+      - name: Create Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          name: "NovelNest ${{ github.ref_name }}"
+          name: "${{ env.APP_NAME }} ${{ github.ref_name }}"
           tag_name: ${{ github.ref_name }}
           body: |
-            ## 📦 NovelNest ${{ github.ref_name }}
+            ## 📦 ${{ env.APP_NAME }} ${{ github.ref_name }}
+
+            **Version:** ${{ env.VERSION }}
 
             ### Installation
-            1. Download the APK below
-            2. Enable **Install from unknown sources**
-            3. Install the APK
+            - Download APK below
+            - Enable unknown sources
+            - Install normally
 
-            ### Changes
-            ${{ github.event.head_commit.message }}
-          draft: false
-          prerelease: ${{ contains(github.ref_name, '-beta') || contains(github.ref_name, '-rc') }}
-          files: android/app/build/outputs/apk/release/NovelNest-${{ github.ref_name }}.apk
+            ### Build Info
+            - Mode: ${{ env.MODE }}
+            - Commit: ${{ github.sha }}
+
+          files: android/app/build/outputs/apk/release/*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
