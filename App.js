@@ -1,5 +1,17 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { StyleSheet, View, useColorScheme } from "react-native";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  Animated,
+  Easing,
+  StyleSheet,
+  View,
+  useColorScheme,
+} from "react-native";
 import {
   NavigationContainer,
   DarkTheme as NavDarkTheme,
@@ -10,7 +22,6 @@ import {
   Provider as PaperProvider,
   MD3DarkTheme,
   MD3LightTheme,
-  ActivityIndicator,
   Text,
 } from "react-native-paper";
 import { StatusBar } from "expo-status-bar";
@@ -39,6 +50,89 @@ const STORAGE_KEYS = {
   defaultDueDays: "pref_default_due_days",
 };
 
+const MIN_SPLASH_MS = 750;
+
+const AnimatedSplash = ({ theme }) => {
+  const scale = useRef(new Animated.Value(0.92)).current;
+  const rotate = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(scale, {
+          toValue: 1,
+          duration: 650,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(scale, {
+          toValue: 0.92,
+          duration: 650,
+          easing: Easing.in(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+
+    const spin = Animated.loop(
+      Animated.timing(rotate, {
+        toValue: 1,
+        duration: 1200,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      }),
+    );
+
+    pulse.start();
+    spin.start();
+
+    return () => {
+      pulse.stop();
+      spin.stop();
+    };
+  }, [rotate, scale]);
+
+  const rotation = rotate.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "360deg"],
+  });
+
+  return (
+    <View
+      style={[
+        styles.loadingContainer,
+        { backgroundColor: theme.colors.background },
+      ]}
+    >
+      <View style={styles.logoStack}>
+        <Animated.View
+          style={[
+            styles.logoRing,
+            {
+              borderColor: theme.colors.secondary,
+              borderTopColor: "transparent",
+              transform: [{ rotate: rotation }],
+            },
+          ]}
+        />
+
+        <Animated.Image
+          source={require("./assets/icon.png")}
+          style={[styles.logo, { transform: [{ scale }] }]}
+          resizeMode="contain"
+        />
+      </View>
+
+      <Text style={[styles.loadingTitle, { color: theme.colors.onBackground }]}>
+        LoanTracker
+      </Text>
+      <Text style={[styles.loadingText, { color: theme.colors.onBackground }]}>
+        Preparing your ledger…
+      </Text>
+    </View>
+  );
+};
+
 export default function App() {
   const systemColorScheme = useColorScheme();
   const [themeMode, setThemeModeState] = useState("system"); // system | light | dark
@@ -47,11 +141,17 @@ export default function App() {
 
   useEffect(() => {
     const bootstrap = async () => {
+      const start = Date.now();
       try {
         await initDatabase();
       } catch (error) {
         console.error("Database init failed:", error);
       } finally {
+        const elapsed = Date.now() - start;
+        const remaining = Math.max(MIN_SPLASH_MS - elapsed, 0);
+        if (remaining) {
+          await new Promise((r) => setTimeout(r, remaining));
+        }
         setDbReady(true);
       }
 
@@ -72,7 +172,9 @@ export default function App() {
   useEffect(() => {
     const loadPreferences = async () => {
       try {
-        const savedThemeMode = await AsyncStorage.getItem(STORAGE_KEYS.themeMode);
+        const savedThemeMode = await AsyncStorage.getItem(
+          STORAGE_KEYS.themeMode,
+        );
         if (savedThemeMode) setThemeModeState(savedThemeMode);
       } catch {}
 
@@ -142,8 +244,7 @@ export default function App() {
   }, [resolvedThemeMode]);
 
   const navigationTheme = useMemo(() => {
-    const base =
-      resolvedThemeMode === "dark" ? NavDarkTheme : NavDefaultTheme;
+    const base = resolvedThemeMode === "dark" ? NavDarkTheme : NavDefaultTheme;
     return {
       ...base,
       colors: {
@@ -185,28 +286,24 @@ export default function App() {
                 name="CustomerDetail"
                 component={CustomerDetailScreen}
               />
-              <Stack.Screen name="EditCustomer" component={EditCustomerScreen} />
+              <Stack.Screen
+                name="EditCustomer"
+                component={EditCustomerScreen}
+              />
               <Stack.Screen
                 name="AddTransaction"
                 component={AddTransactionScreen}
               />
               <Stack.Screen name="AddPayment" component={AddPaymentScreen} />
-              <Stack.Screen name="Transactions" component={TransactionsScreen} />
+              <Stack.Screen
+                name="Transactions"
+                component={TransactionsScreen}
+              />
               <Stack.Screen name="Settings" component={SettingsScreen} />
             </Stack.Navigator>
           </NavigationContainer>
         ) : (
-          <View
-            style={[
-              styles.loadingContainer,
-              { backgroundColor: paperTheme.colors.background },
-            ]}
-          >
-            <ActivityIndicator size="large" />
-            <Text style={[styles.loadingText, { color: paperTheme.colors.onBackground }]}>
-              Loading…
-            </Text>
-          </View>
+          <AnimatedSplash theme={paperTheme} />
         )}
       </PaperProvider>
     </PreferencesContext.Provider>
@@ -218,10 +315,35 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    gap: 12,
+    paddingHorizontal: 24,
+  },
+  logoStack: {
+    width: 140,
+    height: 140,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 18,
+  },
+  logoRing: {
+    position: "absolute",
+    width: 128,
+    height: 128,
+    borderRadius: 999,
+    borderWidth: 4,
+    opacity: 0.9,
+  },
+  logo: {
+    width: 92,
+    height: 92,
+  },
+  loadingTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    marginBottom: 6,
   },
   loadingText: {
     fontSize: 14,
     fontWeight: "600",
+    opacity: 0.75,
   },
 });
