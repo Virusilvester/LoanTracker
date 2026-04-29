@@ -6,7 +6,6 @@ import {
   RefreshControl,
   BackHandler,
   TouchableOpacity,
-  Animated,
 } from "react-native";
 import {
   FAB,
@@ -17,7 +16,6 @@ import {
   Text,
   useTheme,
   Badge,
-  Chip,
 } from "react-native-paper";
 import { useFocusEffect } from "@react-navigation/native";
 import CustomerCard from "../components/CustomerCard";
@@ -110,6 +108,8 @@ const HomeScreen = ({ navigation }) => {
     });
 
   const overdueCount = stats.overdue_count || 0;
+  const emptyTextColor = theme.colors.onSurfaceVariant || "#9CA3AF";
+  const emptySubtextColor = theme.colors.onSurfaceVariant || "#6B7280";
 
   return (
     <View
@@ -143,46 +143,6 @@ const HomeScreen = ({ navigation }) => {
         />
       </Appbar.Header>
 
-      <DashboardStats stats={stats} />
-
-      <View style={styles.controlsRow}>
-        <SegmentedButtons
-          value={customerFilter}
-          onValueChange={setCustomerFilter}
-          style={styles.segmented}
-          buttons={[
-            { value: "all", label: "All", icon: "account-multiple" },
-            { value: "owing", label: "Owing", icon: "alert-circle-outline" },
-            { value: "paid", label: "Paid", icon: "check-circle-outline" },
-          ]}
-        />
-        <TouchableOpacity
-          onPress={cycleSortBy}
-          style={[
-            styles.sortButton,
-            {
-              backgroundColor: theme.colors.surface,
-              borderColor: theme.colors.outline,
-            },
-          ]}
-        >
-          <Text
-            style={[styles.sortLabel, { color: theme.colors.onSurface }]}
-            numberOfLines={1}
-          >
-            {sortLabel}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      <Searchbar
-        placeholder="Search customers..."
-        onChangeText={setSearchQuery}
-        value={searchQuery}
-        style={styles.searchBar}
-        inputStyle={styles.searchInput}
-      />
-
       <FlatList
         data={filteredCustomers}
         keyExtractor={(item) => item.id.toString()}
@@ -194,17 +154,66 @@ const HomeScreen = ({ navigation }) => {
             }
           />
         )}
+        ListHeaderComponent={
+          <View>
+            <DashboardStats stats={stats} />
+
+            <View style={styles.controlsRow}>
+              <SegmentedButtons
+                value={customerFilter}
+                onValueChange={setCustomerFilter}
+                style={styles.segmented}
+                buttons={[
+                  { value: "all", label: "All", icon: "account-multiple" },
+                  {
+                    value: "owing",
+                    label: "Owing",
+                    icon: "alert-circle-outline",
+                  },
+                  { value: "paid", label: "Paid", icon: "check-circle-outline" },
+                ]}
+              />
+              <TouchableOpacity
+                onPress={cycleSortBy}
+                style={[
+                  styles.sortButton,
+                  {
+                    backgroundColor: theme.colors.surface,
+                    borderColor: theme.colors.outline,
+                  },
+                ]}
+              >
+                <Text
+                  style={[styles.sortLabel, { color: theme.colors.onSurface }]}
+                  numberOfLines={1}
+                >
+                  {sortLabel}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <Searchbar
+              placeholder="Search customers..."
+              onChangeText={setSearchQuery}
+              value={searchQuery}
+              style={styles.searchBar}
+              inputStyle={styles.searchInput}
+            />
+          </View>
+        }
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
         contentContainerStyle={styles.list}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Text style={styles.emptyIcon}>👤</Text>
-            <Text style={styles.emptyText}>
+            <Text style={[styles.emptyText, { color: emptyTextColor }]}>
               {searchQuery ? "No customers found" : "No customers yet"}
             </Text>
-            <Text style={styles.emptySubtext}>
+            <Text style={[styles.emptySubtext, { color: emptySubtextColor }]}>
               {searchQuery
                 ? "Try a different name or phone number"
                 : 'Tap "Add Customer" to get started'}
@@ -282,13 +291,11 @@ const styles = StyleSheet.create({
   emptyIcon: { fontSize: 48, marginBottom: 16 },
   emptyText: {
     fontSize: 18,
-    color: "#9CA3AF",
     fontWeight: "600",
     textAlign: "center",
   },
   emptySubtext: {
     fontSize: 14,
-    color: "#D1D5DB",
     marginTop: 8,
     textAlign: "center",
   },

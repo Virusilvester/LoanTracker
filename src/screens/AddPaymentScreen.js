@@ -1,5 +1,12 @@
 import React, { useCallback, useContext, useMemo, useState } from "react";
-import { View, StyleSheet, Alert, ScrollView } from "react-native";
+import {
+  View,
+  StyleSheet,
+  Alert,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
 import {
   Appbar,
   Surface,
@@ -156,8 +163,9 @@ const AddPaymentScreen = ({ route, navigation }) => {
     transaction?.due_date && new Date(transaction.due_date) < new Date();
 
   return (
-    <View
+    <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: theme.colors.background }]}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <Appbar.Header>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
@@ -180,7 +188,11 @@ const AddPaymentScreen = ({ route, navigation }) => {
       ) : null}
 
       {!loading && transaction ? (
-        <ScrollView contentContainerStyle={styles.content}>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+        >
           {/* Summary Card */}
           <Surface
             style={[styles.card, { backgroundColor: theme.colors.surface }]}
@@ -348,7 +360,7 @@ const AddPaymentScreen = ({ route, navigation }) => {
           </Surface>
         </ScrollView>
       ) : null}
-    </View>
+    </KeyboardAvoidingView>
   );
 };
 

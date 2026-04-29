@@ -1,5 +1,12 @@
 import React, { useContext, useEffect, useState } from "react";
-import { View, StyleSheet, ScrollView, Alert } from "react-native";
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
 import {
   TextInput,
   Button,
@@ -140,8 +147,9 @@ const AddTransactionScreen = ({ route, navigation }) => {
   };
 
   return (
-    <View
+    <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: theme.colors.background }]}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <Appbar.Header>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
@@ -151,7 +159,12 @@ const AddTransactionScreen = ({ route, navigation }) => {
         />
       </Appbar.Header>
 
-      <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        style={styles.content}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        contentContainerStyle={styles.contentContainer}
+      >
         <HelperText type="error" visible={!!errors.customerId}>
           {errors.customerId}
         </HelperText>
@@ -392,13 +405,14 @@ const AddTransactionScreen = ({ route, navigation }) => {
           Record Loan
         </Button>
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: 16 },
+  content: { paddingHorizontal: 16 },
+  contentContainer: { paddingTop: 16, paddingBottom: 32 },
   row: { flexDirection: "row", gap: 12 },
   flex1: { flex: 1 },
   quantityInput: { width: 80 },

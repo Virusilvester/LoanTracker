@@ -90,7 +90,7 @@ const AddCustomerScreen = ({ navigation }) => {
   return (
     <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: theme.colors.background }]}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <Appbar.Header>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
