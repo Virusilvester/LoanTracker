@@ -12,20 +12,42 @@ import {
   TextInput,
   HelperText,
   useTheme,
+  RadioButton,
 } from "react-native-paper";
 import { exportToCSV, shareDatabase, importDatabase } from "../services/backup";
 import { checkAndScheduleOverdueReminders } from "../services/notifications";
 import { PreferencesContext } from "../contexts/PreferencesContext";
 
+const CURRENCY_OPTIONS = [
+  { label: "ZMW (K)", value: "ZMW" },
+  { label: "USD ($)", value: "USD" },
+  { label: "ZAR (R)", value: "ZAR" },
+  { label: "KES (Ksh)", value: "KES" },
+  { label: "NGN (₦)", value: "NGN" },
+  { label: "GHS (₵)", value: "GHS" },
+  { label: "GBP (£)", value: "GBP" },
+  { label: "EUR (€)", value: "EUR" },
+];
+
 const SettingsScreen = () => {
   const theme = useTheme();
-  const { themeMode, setThemeMode, defaultDueDays, setDefaultDueDays } =
-    useContext(PreferencesContext);
+  const {
+    themeMode,
+    setThemeMode,
+    currencyCode,
+    setCurrencyCode,
+    defaultDueDays,
+    setDefaultDueDays,
+  } = useContext(PreferencesContext);
   const [loading, setLoading] = useState(false);
   const [importDialogVisible, setImportDialogVisible] = useState(false);
   const [dueDialogVisible, setDueDialogVisible] = useState(false);
+  const [currencyDialogVisible, setCurrencyDialogVisible] = useState(false);
   const [dueDaysInput, setDueDaysInput] = useState(
     String(defaultDueDays || 30),
+  );
+  const [selectedCurrency, setSelectedCurrency] = useState(
+    currencyCode || "ZMW",
   );
 
   const dueDaysError = useMemo(() => {
@@ -64,10 +86,7 @@ const SettingsScreen = () => {
     try {
       const success = await importDatabase();
       if (success) {
-        Alert.alert(
-          "Success",
-          "Database imported successfully. Please restart the app.",
-        );
+        Alert.alert("Success", "Database imported. Please restart the app.");
       }
     } catch (error) {
       Alert.alert("Import Failed", "Could not import database");
@@ -78,10 +97,7 @@ const SettingsScreen = () => {
 
   const handleTestReminders = async () => {
     await checkAndScheduleOverdueReminders();
-    Alert.alert(
-      "Reminders Scheduled",
-      "Overdue payment reminders have been scheduled",
-    );
+    Alert.alert("Done", "Overdue payment reminders have been scheduled");
   };
 
   const openDueDaysDialog = () => {
@@ -96,18 +112,29 @@ const SettingsScreen = () => {
     Alert.alert("Saved", `Default due period set to ${dueDaysInput} days`);
   };
 
+  const openCurrencyDialog = () => {
+    setSelectedCurrency(currencyCode || "ZMW");
+    setCurrencyDialogVisible(true);
+  };
+
+  const currentCurrencyLabel =
+    CURRENCY_OPTIONS.find((c) => c.value === currencyCode)?.label ||
+    currencyCode ||
+    "ZMW";
+
   return (
     <View
       style={[styles.container, { backgroundColor: theme.colors.background }]}
     >
       <Appbar.Header>
-        <Appbar.Content title="Settings & Backup" />
+        <Appbar.Content title="Settings" />
       </Appbar.Header>
 
       <ScrollView>
+        {/* Appearance */}
         <List.Section>
           <List.Subheader>Appearance</List.Subheader>
-          <View style={styles.appearanceSection}>
+          <View style={styles.sectionContent}>
             <SegmentedButtons
               value={themeMode}
               onValueChange={setThemeMode}
@@ -118,23 +145,53 @@ const SettingsScreen = () => {
               ]}
             />
           </View>
+        </List.Section>
+
+        <Divider />
+
+        {/* Preferences */}
+        <List.Section>
+          <List.Subheader>Preferences</List.Subheader>
 
           <List.Item
             title="Default Due Period"
-            description={`${defaultDueDays || 30} days`}
+            description={`${defaultDueDays || 30} days after loan date`}
             left={(props) => (
-              <List.Icon {...props} icon="calendar-clock" color="#6366F1" />
+              <List.Icon
+                {...props}
+                icon="calendar-clock"
+                color={theme.colors.secondary}
+              />
             )}
+            right={(props) => <List.Icon {...props} icon="chevron-right" />}
             onPress={openDueDaysDialog}
+          />
+          <Divider />
+
+          <List.Item
+            title="Currency"
+            description={currentCurrencyLabel}
+            left={(props) => (
+              <List.Icon
+                {...props}
+                icon="currency-usd"
+                color={theme.colors.secondary}
+              />
+            )}
+            right={(props) => <List.Icon {...props} icon="chevron-right" />}
+            onPress={openCurrencyDialog}
           />
         </List.Section>
 
+        <Divider />
+
+        {/* Data Management */}
         <List.Section>
           <List.Subheader>Data Management</List.Subheader>
 
           <List.Item
             title="Export to CSV"
-            description="Share data as spreadsheet"
+            description="Share data as a spreadsheet"
             left={(props) => (
               <List.Icon {...props} icon="file-export" color="#6366F1" />
             )}
@@ -144,7 +201,7 @@ const SettingsScreen = () => {
 
           <List.Item
             title="Backup Database"
-            description="Create full database backup"
+            description="Create a full database backup file"
             left={(props) => (
               <List.Icon {...props} icon="cloud-upload" color="#10B981" />
             )}
@@ -153,8 +210,8 @@ const SettingsScreen = () => {
           <Divider />
 
           <List.Item
-            title="Import Database"
-            description="Restore from backup file"
+            title="Restore from Backup"
+            description="Import a previously saved backup"
             left={(props) => (
               <List.Icon {...props} icon="cloud-download" color="#F59E0B" />
             )}
@@ -162,12 +219,14 @@ const SettingsScreen = () => {
           />
         </List.Section>
 
+        <Divider />
+
+        {/* Notifications */}
         <List.Section>
           <List.Subheader>Notifications</List.Subheader>
-
           <List.Item
             title="Check Overdue Reminders"
-            description="Schedule reminders for overdue items"
+            description="Schedule reminders for all overdue loans"
             left={(props) => (
               <List.Icon {...props} icon="bell-ring" color="#EF4444" />
             )}
@@ -175,36 +234,54 @@ const SettingsScreen = () => {
           />
         </List.Section>
 
-        <View style={styles.infoSection}>
-          <Button
-            mode="outlined"
+        <Divider />
+
+        {/* About */}
+        <List.Section>
+          <List.Subheader>About</List.Subheader>
+          <List.Item
+            title="Share App"
+            description="Tell others about Loan Tracker"
+            left={(props) => (
+              <List.Icon
+                {...props}
+                icon="share-variant"
+                color={theme.colors.secondary}
+              />
+            )}
             onPress={() =>
               Share.share({
                 message:
-                  "Loan Tracker App - Manage your customer loans easily!",
+                  "Loan Tracker App — Easily manage customer loans! Track who owes what, set reminders, and keep your records organised.",
               })
             }
-            style={[
-              styles.shareButton,
-              { borderColor: theme.colors.secondary },
-            ]}
-          >
-            Share App
-          </Button>
-        </View>
+          />
+          <Divider />
+          <List.Item
+            title="Version"
+            description="1.0.3"
+            left={(props) => (
+              <List.Icon
+                {...props}
+                icon="information-outline"
+                color="#9CA3AF"
+              />
+            )}
+          />
+        </List.Section>
       </ScrollView>
 
+      {/* Dialogs */}
       <Portal>
         <Dialog
           visible={importDialogVisible}
           onDismiss={() => setImportDialogVisible(false)}
         >
-          <Dialog.Title>Import Database</Dialog.Title>
+          <Dialog.Title>Restore from Backup</Dialog.Title>
           <Dialog.Content>
-            <ActivityIndicator animating={loading} />
             <List.Item
               title="Warning"
-              description="This will replace all current data. Make sure you have a backup first!"
+              description="This will replace ALL current data with the backup. Make sure you have exported your current data first."
               left={(props) => (
                 <List.Icon {...props} icon="alert" color="#EF4444" />
               )}
@@ -214,8 +291,8 @@ const SettingsScreen = () => {
             <Button onPress={() => setImportDialogVisible(false)}>
               Cancel
             </Button>
-            <Button onPress={handleImportDB} color="#EF4444">
-              Import
+            <Button onPress={handleImportDB} textColor="#EF4444">
+              Restore
             </Button>
           </Dialog.Actions>
         </Dialog>
@@ -237,10 +314,51 @@ const SettingsScreen = () => {
             <HelperText type="error" visible={!!dueDaysError}>
               {dueDaysError}
             </HelperText>
+            <HelperText type="info" visible>
+              New loans will default to this many days before the due date.
+            </HelperText>
           </Dialog.Content>
           <Dialog.Actions>
             <Button onPress={() => setDueDialogVisible(false)}>Cancel</Button>
-            <Button onPress={handleSaveDueDays}>Save</Button>
+            <Button onPress={handleSaveDueDays} disabled={!!dueDaysError}>
+              Save
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+
+        <Dialog
+          visible={currencyDialogVisible}
+          onDismiss={() => setCurrencyDialogVisible(false)}
+        >
+          <Dialog.Title>Select Currency</Dialog.Title>
+          <Dialog.ScrollArea style={{ maxHeight: 360 }}>
+            <ScrollView>
+              <RadioButton.Group
+                onValueChange={(v) => setSelectedCurrency(v)}
+                value={selectedCurrency}
+              >
+                {CURRENCY_OPTIONS.map((opt) => (
+                  <RadioButton.Item
+                    key={opt.value}
+                    label={opt.label}
+                    value={opt.value}
+                  />
+                ))}
+              </RadioButton.Group>
+            </ScrollView>
+          </Dialog.ScrollArea>
+          <Dialog.Actions>
+            <Button onPress={() => setCurrencyDialogVisible(false)}>
+              Cancel
+            </Button>
+            <Button
+              onPress={() => {
+                setCurrencyCode(selectedCurrency);
+                setCurrencyDialogVisible(false);
+              }}
+            >
+              Save
+            </Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>
@@ -264,18 +382,8 @@ const SettingsScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  appearanceSection: {
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-  },
-  infoSection: {
-    padding: 16,
-    marginTop: 24,
-  },
-  shareButton: {},
+  container: { flex: 1 },
+  sectionContent: { paddingHorizontal: 16, paddingBottom: 8 },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: "center",

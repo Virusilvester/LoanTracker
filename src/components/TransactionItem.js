@@ -1,8 +1,9 @@
-import React from "react";
+import React, { useContext } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { IconButton, Surface, useTheme } from "react-native-paper";
 import StatusBadge from "./StatusBadge";
 import { formatCurrency, formatDate } from "../utils/helpers";
+import { PreferencesContext } from "../contexts/PreferencesContext";
 
 const TransactionItem = ({
   transaction,
@@ -13,6 +14,7 @@ const TransactionItem = ({
   showCustomerName = true,
 }) => {
   const theme = useTheme();
+  const { currencyCode } = useContext(PreferencesContext);
   const secondaryText = theme.colors.onSurfaceVariant || "#6B7280";
 
   const totalAmount = Number(transaction.amount) || 0;
@@ -42,7 +44,7 @@ const TransactionItem = ({
         <Text
           style={[styles.amount, { color: isSettled ? "#10B981" : "#EF4444" }]}
         >
-          {formatCurrency(displayAmount)}
+          {formatCurrency(displayAmount, currencyCode)}
         </Text>
       </View>
 
@@ -58,8 +60,10 @@ const TransactionItem = ({
         ) : null}
         {paidAmount > 0 ? (
           <Text style={[styles.meta, { color: secondaryText }]}>
-            Paid: {formatCurrency(paidAmount)}
-            {balance > 0 ? ` • Balance: ${formatCurrency(balance)}` : ""}
+            Paid: {formatCurrency(paidAmount, currencyCode)}
+            {balance > 0
+              ? ` • Balance: ${formatCurrency(balance, currencyCode)}`
+              : ""}
           </Text>
         ) : null}
         {transaction.status === "paid" && transaction.date_paid ? (

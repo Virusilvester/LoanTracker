@@ -1,10 +1,12 @@
-import React from "react";
+import React, { useContext } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Image } from "react-native";
 import { Avatar, Card, useTheme } from "react-native-paper";
 import { getInitials, formatCurrency } from "../utils/helpers";
+import { PreferencesContext } from "../contexts/PreferencesContext";
 
 const CustomerCard = ({ customer, onPress }) => {
   const theme = useTheme();
+  const { currencyCode } = useContext(PreferencesContext);
   const hasDebt = customer.owed_amount > 0;
   const secondaryText = theme.colors.onSurfaceVariant || "#6B7280";
 
@@ -40,7 +42,7 @@ const CustomerCard = ({ customer, onPress }) => {
               </Text>
               {hasDebt ? (
                 <Text style={styles.debtAmount}>
-                  Owes: {formatCurrency(customer.owed_amount)}
+                  Owes: {formatCurrency(customer.owed_amount, currencyCode)}
                 </Text>
               ) : (
                 <Text style={styles.paidStatus}>All Paid ✓</Text>

@@ -1,10 +1,12 @@
-import React from "react";
+import React, { useContext } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { Surface, useTheme } from "react-native-paper";
 import { formatCurrency } from "../utils/helpers";
+import { PreferencesContext } from "../contexts/PreferencesContext";
 
 const StatCard = ({ title, amount, count, color }) => {
   const theme = useTheme();
+  const { currencyCode } = useContext(PreferencesContext);
   const secondaryText = theme.colors.onSurfaceVariant || "#6B7280";
 
   return (
@@ -16,7 +18,7 @@ const StatCard = ({ title, amount, count, color }) => {
     >
       <Text style={[styles.statTitle, { color: secondaryText }]}>{title}</Text>
       <Text style={[styles.statAmount, { color }]}>
-        {formatCurrency(amount)}
+        {formatCurrency(amount, currencyCode)}
       </Text>
       <Text style={[styles.statCount, { color: secondaryText }]}>
         {count} transactions

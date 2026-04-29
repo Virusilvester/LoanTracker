@@ -6,6 +6,8 @@ import {
   Image,
   TouchableOpacity,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import {
   TextInput,
@@ -14,6 +16,8 @@ import {
   HelperText,
   Avatar,
   useTheme,
+  Text,
+  Divider,
 } from "react-native-paper";
 import {
   deleteCustomer,
@@ -40,7 +44,10 @@ const EditCustomerScreen = ({ route, navigation }) => {
   const validate = () => {
     const newErrors = {};
     if (!name.trim()) newErrors.name = "Name is required";
-    if (phone && phone.length < 10) newErrors.phone = "Invalid phone number";
+    if (phone && phone.replace(/\D/g, "").length < 9)
+      newErrors.phone = "Invalid phone number";
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+      newErrors.email = "Invalid email address";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -55,15 +62,44 @@ const EditCustomerScreen = ({ route, navigation }) => {
     if (uri) setPhoto(uri);
   };
 
+  const handlePhotoPress = () => {
+    const options = photo
+      ? [
+          { text: "Take Photo", onPress: handleTakePhoto },
+          { text: "Choose from Gallery", onPress: handlePickImage },
+          {
+            text: "Remove Photo",
+            style: "destructive",
+            onPress: () => setPhoto(null),
+          },
+          { text: "Cancel", style: "cancel" },
+        ]
+      : [
+          { text: "Camera", onPress: handleTakePhoto },
+          { text: "Gallery", onPress: handlePickImage },
+          { text: "Cancel", style: "cancel" },
+        ];
+    Alert.alert(
+      photo ? "Change Photo" : "Add Photo",
+      "Choose a source:",
+      options,
+    );
+  };
+
   const handleSave = async () => {
     if (!validate()) return;
 
     setLoading(true);
     try {
-      await updateCustomer(customer.id, name, phone, email, photo);
+      await updateCustomer(
+        customer.id,
+        name.trim(),
+        phone.trim(),
+        email.trim(),
+        photo,
+      );
       navigation.goBack();
     } catch (error) {
-      console.error(error);
       Alert.alert("Error", "Failed to update customer");
     } finally {
       setLoading(false);
@@ -73,7 +109,7 @@ const EditCustomerScreen = ({ route, navigation }) => {
   const handleDelete = () => {
     Alert.alert(
       "Delete Customer",
-      "This will delete the customer and all their transactions. Continue?",
+      `Delete ${customer.name || "this customer"} and all their loan records? This cannot be undone.`,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -87,11 +123,9 @@ const EditCustomerScreen = ({ route, navigation }) => {
                 await cancelReminder(t.id);
                 await cancelOverdueReminder(t.id);
               }
-
               await deleteCustomer(customer.id);
               navigation.popToTop();
             } catch (error) {
-              console.error(error);
               Alert.alert("Error", "Could not delete customer");
             } finally {
               setLoading(false);
@@ -103,59 +137,45 @@ const EditCustomerScreen = ({ route, navigation }) => {
   };
 
   return (
-    <View
+    <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: theme.colors.background }]}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <Appbar.Header>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
         <Appbar.Content title="Edit Customer" />
       </Appbar.Header>
 
-      <ScrollView style={styles.content}>
+      <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.photoSection}>
-          {photo ? (
-            <TouchableOpacity
-              onPress={() =>
-                Alert.alert("Remove Photo", "Remove the current photo?", [
-                  { text: "Cancel", style: "cancel" },
-                  {
-                    text: "Remove",
-                    style: "destructive",
-                    onPress: () => setPhoto(null),
-                  },
-                ])
-              }
-            >
+          <TouchableOpacity
+            onPress={handlePhotoPress}
+            disabled={loading}
+            style={styles.photoTouchable}
+          >
+            {photo ? (
               <Image source={{ uri: photo }} style={styles.photo} />
-            </TouchableOpacity>
-          ) : (
-            <Avatar.Text
-              size={100}
-              label={getInitials(name.trim() || "?")}
-              style={styles.avatarPlaceholder}
-            />
-          )}
-
-          <View style={styles.photoButtons}>
-            <Button
-              mode="outlined"
-              onPress={handleTakePhoto}
-              style={styles.photoButton}
-              icon="camera"
-              disabled={loading}
+            ) : (
+              <Avatar.Text
+                size={100}
+                label={getInitials(name.trim() || "?")}
+                style={{ backgroundColor: theme.colors.secondary }}
+              />
+            )}
+            <View
+              style={[
+                styles.photoEditBadge,
+                { backgroundColor: theme.colors.secondary },
+              ]}
             >
-              Camera
-            </Button>
-            <Button
-              mode="outlined"
-              onPress={handlePickImage}
-              style={styles.photoButton}
-              icon="image"
-              disabled={loading}
-            >
-              Gallery
-            </Button>
-          </View>
+              <Text style={styles.photoEditIcon}>✎</Text>
+            </View>
+          </TouchableOpacity>
+          <Text
+            style={[styles.photoHint, { color: theme.colors.onSurfaceVariant }]}
+          >
+            Tap to {photo ? "change" : "add"} photo
+          </Text>
         </View>
 
         <TextInput
@@ -166,6 +186,7 @@ const EditCustomerScreen = ({ route, navigation }) => {
           style={styles.input}
           error={!!errors.name}
           disabled={loading}
+          autoCapitalize="words"
         />
         <HelperText type="error" visible={!!errors.name}>
           {errors.name}
@@ -193,13 +214,18 @@ const EditCustomerScreen = ({ route, navigation }) => {
           style={styles.input}
           keyboardType="email-address"
           autoCapitalize="none"
+          error={!!errors.email}
           disabled={loading}
         />
+        <HelperText type="error" visible={!!errors.email}>
+          {errors.email}
+        </HelperText>
 
         <Button
           mode="contained"
           onPress={handleSave}
           loading={loading}
+          disabled={loading}
           style={[
             styles.saveButton,
             { backgroundColor: theme.colors.secondary },
@@ -209,62 +235,59 @@ const EditCustomerScreen = ({ route, navigation }) => {
           Save Changes
         </Button>
 
+        <Divider style={styles.divider} />
+
         <Button
           mode="outlined"
           onPress={handleDelete}
           disabled={loading}
           style={styles.deleteButton}
           textColor="#EF4444"
+          icon="delete"
         >
           Delete Customer
         </Button>
+        <Text
+          style={[
+            styles.deleteWarning,
+            { color: theme.colors.onSurfaceVariant },
+          ]}
+        >
+          This will permanently delete the customer and all associated loans.
+        </Text>
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  content: {
-    padding: 16,
-  },
+  container: { flex: 1 },
+  content: { padding: 16 },
   photoSection: {
     alignItems: "center",
     marginBottom: 24,
+    marginTop: 8,
   },
-  photo: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+  photoTouchable: { position: "relative" },
+  photo: { width: 100, height: 100, borderRadius: 50 },
+  photoEditBadge: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  avatarPlaceholder: {
-    backgroundColor: "#E5E7EB",
-  },
-  photoButtons: {
-    flexDirection: "row",
-    marginTop: 12,
-    gap: 12,
-  },
-  photoButton: {
-    marginHorizontal: 6,
-  },
-  input: {
-    marginBottom: 4,
-  },
-  saveButton: {
-    marginTop: 24,
-    borderRadius: 8,
-  },
-  deleteButton: {
-    marginTop: 12,
-    borderRadius: 8,
-    borderColor: "#EF4444",
-  },
-  buttonContent: {
-    paddingVertical: 8,
-  },
+  photoEditIcon: { color: "#fff", fontSize: 14 },
+  photoHint: { marginTop: 8, fontSize: 12 },
+  input: { marginBottom: 4 },
+  saveButton: { marginTop: 24, borderRadius: 8 },
+  buttonContent: { paddingVertical: 8 },
+  divider: { marginVertical: 20 },
+  deleteButton: { borderRadius: 8, borderColor: "#EF4444", marginBottom: 8 },
+  deleteWarning: { fontSize: 12, textAlign: "center", marginBottom: 32 },
 });
 
 export default EditCustomerScreen;

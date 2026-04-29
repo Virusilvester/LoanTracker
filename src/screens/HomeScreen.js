@@ -5,6 +5,8 @@ import {
   StyleSheet,
   RefreshControl,
   BackHandler,
+  TouchableOpacity,
+  Animated,
 } from "react-native";
 import {
   FAB,
@@ -14,6 +16,8 @@ import {
   SegmentedButtons,
   Text,
   useTheme,
+  Badge,
+  Chip,
 } from "react-native-paper";
 import { useFocusEffect } from "@react-navigation/native";
 import CustomerCard from "../components/CustomerCard";
@@ -29,6 +33,7 @@ const HomeScreen = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [sortBy, setSortBy] = useState("name"); // 'name' | 'balance' | 'recent'
 
   const loadData = useCallback(async () => {
     try {
@@ -56,7 +61,6 @@ const HomeScreen = ({ navigation }) => {
         BackHandler.exitApp();
         return true;
       };
-
       const subscription = BackHandler.addEventListener(
         "hardwareBackPress",
         onBackPress,
@@ -76,6 +80,16 @@ const HomeScreen = ({ navigation }) => {
     setSnackbarVisible(true);
   };
 
+  const cycleSortBy = () => {
+    const options = ["name", "balance", "recent"];
+    const next = options[(options.indexOf(sortBy) + 1) % options.length];
+    setSortBy(next);
+  };
+
+  const sortLabel = { name: "A–Z", balance: "Balance ↓", recent: "Recent" }[
+    sortBy
+  ];
+
   const filteredCustomers = customers
     .filter((customer) => {
       if (customerFilter === "owing") return customer.owed_amount > 0;
@@ -86,7 +100,16 @@ const HomeScreen = ({ navigation }) => {
       (customer) =>
         customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (customer.phone && customer.phone.includes(searchQuery)),
-    );
+    )
+    .sort((a, b) => {
+      if (sortBy === "name") return a.name.localeCompare(b.name);
+      if (sortBy === "balance")
+        return (b.owed_amount || 0) - (a.owed_amount || 0);
+      if (sortBy === "recent") return (b.id || 0) - (a.id || 0);
+      return 0;
+    });
+
+  const overdueCount = stats.overdue_count || 0;
 
   return (
     <View
@@ -95,29 +118,61 @@ const HomeScreen = ({ navigation }) => {
       <Appbar.Header
         style={[styles.header, { backgroundColor: theme.colors.primary }]}
       >
-        <Appbar.Content title="Loan Tracker" subtitle="Manage customer loans" />
-        <Appbar.Action
-          icon="format-list-bulleted"
-          onPress={() => navigation.navigate("Transactions")}
+        <Appbar.Content
+          title="Loan Tracker"
+          subtitle="Manage customer loans"
+          titleStyle={styles.headerTitle}
+          subtitleStyle={styles.headerSubtitle}
         />
+        <View>
+          <Appbar.Action
+            icon="format-list-bulleted"
+            onPress={() => navigation.navigate("Transactions")}
+            iconColor="#fff"
+          />
+          {overdueCount > 0 && (
+            <Badge style={styles.badge} size={16}>
+              {overdueCount}
+            </Badge>
+          )}
+        </View>
         <Appbar.Action
           icon="cog"
           onPress={() => navigation.navigate("Settings")}
+          iconColor="#fff"
         />
       </Appbar.Header>
 
       <DashboardStats stats={stats} />
 
-      <View style={styles.filters}>
+      <View style={styles.controlsRow}>
         <SegmentedButtons
           value={customerFilter}
           onValueChange={setCustomerFilter}
+          style={styles.segmented}
           buttons={[
             { value: "all", label: "All", icon: "account-multiple" },
             { value: "owing", label: "Owing", icon: "alert-circle-outline" },
             { value: "paid", label: "Paid", icon: "check-circle-outline" },
           ]}
         />
+        <TouchableOpacity
+          onPress={cycleSortBy}
+          style={[
+            styles.sortButton,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.outline,
+            },
+          ]}
+        >
+          <Text
+            style={[styles.sortLabel, { color: theme.colors.onSurface }]}
+            numberOfLines={1}
+          >
+            {sortLabel}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <Searchbar
@@ -125,6 +180,7 @@ const HomeScreen = ({ navigation }) => {
         onChangeText={setSearchQuery}
         value={searchQuery}
         style={styles.searchBar}
+        inputStyle={styles.searchInput}
       />
 
       <FlatList
@@ -144,9 +200,14 @@ const HomeScreen = ({ navigation }) => {
         contentContainerStyle={styles.list}
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>No customers found</Text>
+            <Text style={styles.emptyIcon}>👤</Text>
+            <Text style={styles.emptyText}>
+              {searchQuery ? "No customers found" : "No customers yet"}
+            </Text>
             <Text style={styles.emptySubtext}>
-              Tap “Add Customer” to record your first customer.
+              {searchQuery
+                ? "Try a different name or phone number"
+                : 'Tap "Add Customer" to get started'}
             </Text>
           </View>
         }
@@ -163,6 +224,7 @@ const HomeScreen = ({ navigation }) => {
         visible={snackbarVisible}
         onDismiss={() => setSnackbarVisible(false)}
         duration={3000}
+        action={{ label: "OK", onPress: () => setSnackbarVisible(false) }}
       >
         {snackbarMessage}
       </Snackbar>
@@ -171,37 +233,53 @@ const HomeScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F3F4F6",
+  container: { flex: 1 },
+  header: { backgroundColor: "#1E3A5F" },
+  headerTitle: { color: "#fff", fontWeight: "bold" },
+  headerSubtitle: { color: "rgba(255,255,255,0.75)", fontSize: 12 },
+  badge: {
+    position: "absolute",
+    top: 4,
+    right: 4,
+    backgroundColor: "#EF4444",
   },
-  header: {
-    backgroundColor: "#1E3A5F",
+  controlsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    gap: 8,
   },
+  segmented: { flex: 1 },
+  sortButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 8,
+    borderWidth: 1,
+    minWidth: 72,
+    alignItems: "center",
+  },
+  sortLabel: { fontSize: 12, fontWeight: "600" },
   searchBar: {
     margin: 16,
+    marginTop: 10,
     borderRadius: 12,
     elevation: 2,
   },
-  filters: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-  },
-  list: {
-    paddingBottom: 80,
-  },
+  searchInput: { fontSize: 14 },
+  list: { paddingBottom: 100 },
   fab: {
     position: "absolute",
     margin: 16,
     right: 0,
     bottom: 0,
-    backgroundColor: "#6366F1",
   },
   emptyState: {
     alignItems: "center",
-    marginTop: 40,
+    marginTop: 60,
     paddingHorizontal: 24,
   },
+  emptyIcon: { fontSize: 48, marginBottom: 16 },
   emptyText: {
     fontSize: 18,
     color: "#9CA3AF",

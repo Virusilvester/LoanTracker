@@ -47,6 +47,7 @@ const Stack = createStackNavigator();
 
 const STORAGE_KEYS = {
   themeMode: "pref_theme_mode",
+  currencyCode: "pref_currency_code",
   defaultDueDays: "pref_default_due_days",
 };
 
@@ -136,6 +137,7 @@ const AnimatedSplash = ({ theme }) => {
 export default function App() {
   const systemColorScheme = useColorScheme();
   const [themeMode, setThemeModeState] = useState("system"); // system | light | dark
+  const [currencyCode, setCurrencyCodeState] = useState("ZMW");
   const [defaultDueDays, setDefaultDueDaysState] = useState(30);
   const [dbReady, setDbReady] = useState(false);
 
@@ -179,6 +181,13 @@ export default function App() {
       } catch {}
 
       try {
+        const savedCurrency = await AsyncStorage.getItem(
+          STORAGE_KEYS.currencyCode,
+        );
+        if (savedCurrency) setCurrencyCodeState(savedCurrency);
+      } catch {}
+
+      try {
         const savedDueDays = await AsyncStorage.getItem(
           STORAGE_KEYS.defaultDueDays,
         );
@@ -194,6 +203,14 @@ export default function App() {
     setThemeModeState(mode);
     try {
       await AsyncStorage.setItem(STORAGE_KEYS.themeMode, mode);
+    } catch {}
+  }, []);
+
+  const setCurrencyCode = useCallback(async (code) => {
+    if (!code) return;
+    setCurrencyCodeState(code);
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.currencyCode, String(code));
     } catch {}
   }, []);
 
@@ -261,10 +278,19 @@ export default function App() {
     () => ({
       themeMode,
       setThemeMode,
+      currencyCode,
+      setCurrencyCode,
       defaultDueDays,
       setDefaultDueDays,
     }),
-    [defaultDueDays, setDefaultDueDays, setThemeMode, themeMode],
+    [
+      currencyCode,
+      defaultDueDays,
+      setCurrencyCode,
+      setDefaultDueDays,
+      setThemeMode,
+      themeMode,
+    ],
   );
 
   return (

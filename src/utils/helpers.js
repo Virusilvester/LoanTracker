@@ -2,13 +2,35 @@ import { format, differenceInDays, parseISO } from "date-fns";
 
 export const CREDIT_PERIOD_DAYS = 30;
 
-export const formatCurrency = (amount) => {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "ZMW",
+const CURRENCY_SYMBOLS = {
+  ZMW: "K",
+  USD: "$",
+  ZAR: "R",
+  KES: "Ksh",
+  NGN: "₦",
+  GHS: "₵",
+  GBP: "£",
+  EUR: "€",
+};
+
+export const formatCurrency = (
+  amount,
+  currencyCode = "ZMW",
+  { maximumFractionDigits = 2 } = {},
+) => {
+  const symbol = CURRENCY_SYMBOLS[currencyCode] || currencyCode || "";
+  const value =
+    typeof amount === "string" ? Number.parseFloat(amount) : Number(amount);
+
+  if (!Number.isFinite(value)) return `${symbol}0`;
+
+  const absFormatted = new Intl.NumberFormat("en-US", {
+    style: "decimal",
     minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
+    maximumFractionDigits,
+  }).format(Math.abs(value));
+
+  return value < 0 ? `-${symbol}${absFormatted}` : `${symbol}${absFormatted}`;
 };
 
 export const formatDate = (dateString) => {
